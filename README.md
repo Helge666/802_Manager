@@ -60,7 +60,7 @@ Collected from various Usenet archives, forums, and synth enthusiast sites over 
 
 ## 🔧 Installation
 
-It is recommended to use a virtual environment. On Windows, for example:
+Please make sure git and python are installed on your system.  It is recommended to use a virtual environment. For example, like this:
 
 > git clone https://github.com/Helge666/802_Manager  
 > cd 802_Manager  
