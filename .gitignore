@@ -1,0 +1,29 @@
+# Byte-compiled / cached
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# OS/IDE junk
+.DS_Store
+Thumbs.db
+*.log
+
+# Editor configs
+.vscode/
+.idea/
+
+# Project-specific
+# Local patch DB and settings — tracked manually if needed
+config/dx_patch_library.sqlite3
+config/802_manager_settings.json
+assets/banks/*.syx
+assets/documentation/
+
+
+*.ipynb
+.ipynb_checkpoints/

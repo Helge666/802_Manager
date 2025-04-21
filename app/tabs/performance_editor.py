@@ -1,0 +1,304 @@
+import gradio as gr
+import datetime
+from core.tx802_utils import edit_performance
+from app.state import midi_output, PATCH_BANK
+import mido
+
+# --- Constants and Helper Functions ---
+voice_dropdowns = []
+
+def get_midi_note_name(note_number):
+    if not 0 <= note_number <= 127:
+        return "Invalid"
+    notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    octave = (note_number // 12) - 2
+    note_index = note_number % 12
+    return f"{notes[note_index]}{octave}"
+
+MIDI_NOTES = [get_midi_note_name(i) for i in range(128)]
+ON_OFF_CHOICES = ["Off", "On"]
+RECEIVE_CHOICES = ["Off"] + [str(i) for i in range(1, 17)] + ["Omni"]
+OUTPUT_CHOICES = ["L", "R", "L&R"]
+
+# --- Dummy Processing Function ---
+def off_handle_interface_data(*all_row_inputs):
+    print(f"--- Dummy Function Triggered ---")
+    print(f"Timestamp: {datetime.datetime.now()}")
+    print(f"Received {len(all_row_inputs)} parameters.")
+
+    return {
+        "status": "OK",
+        "message": "Dummy function executed successfully.",
+        "received_elements": len(all_row_inputs),
+        "timestamp": datetime.datetime.now().isoformat()
+    }
+
+def note_name_to_midi(note_name: str) -> int:
+    try:
+        return MIDI_NOTES.index(note_name)
+    except ValueError:
+        return -1  # Invalid note
+
+def midi_channel_to_internal(val: str) -> int:
+    if val == "Off":
+        pass # neets to be taken care off later
+    elif val == "Omni":
+        return 16
+    try:
+        return int(val)
+    except ValueError:
+        return -1  # fallback
+
+def output_assign_to_code(val: str) -> int:
+    return {"Off": 0, "L": 1, "R": 2, "L&R": 3}.get(val, 0)
+
+def on_off_to_bool(val: str) -> int:
+    return 1 if val == "On" else 0
+
+def build_internal_patch_data(inputs):
+    result = {}
+    tgs = 8
+    cols_per_tg = 11
+
+    for tg in range(tgs):
+        base = tg * cols_per_tg
+        tg_num = tg + 1  # TG1–TG8
+
+        # Map each field by position
+        result[f"UNKNOWN_Link{tg_num}"] = inputs[base + 0]
+        result[f"UNKNOWN_Alternate{tg_num}"] = inputs[base + 1]
+
+        # Future: Patch to voice number mapping
+        patch_name = inputs[base + 2]
+        result[f"VNUM{tg_num}"] = f"[FUTURE: {patch_name}]" if isinstance(patch_name, str) else "[FUTURE: Unknown]"
+
+        # MIDI Channel
+        result[f"RXCH{tg_num}"] = midi_channel_to_internal(inputs[base + 3])
+
+        # Note Limits
+        result[f"NTMTL{tg_num}"] = note_name_to_midi(inputs[base + 4])
+        result[f"NTMTH{tg_num}"] = note_name_to_midi(inputs[base + 5])
+
+        # Detune
+        result[f"DETUNE{tg_num}"] = inputs[base + 6]
+
+        # Note Shift
+        result[f"NSHFT{tg_num}"] = inputs[base + 7]
+
+        # Output Volume
+        result[f"OUTVOL{tg_num}"] = inputs[base + 8]
+
+        # Output Assign
+        result[f"OUTCH{tg_num}"] = output_assign_to_code(inputs[base + 9])
+
+        # Damp
+        result[f"FDAMP{tg_num}"] = on_off_to_bool(inputs[base + 10])
+
+    return result
+
+# --- Gradio Tab Setup Functions ---
+def setup_tab():
+    global voice_dropdowns
+    voice_dropdowns = []
+
+    patch_bank_state = gr.State(PATCH_BANK)
+
+    col_widths = {
+        "TG": 50, "Link": 80, "Alternate": 80, "Voice": 160,
+        "Receive": 90, "Low": 80, "High": 80,
+        "Detune": 70, "Shift": 70, "Volume": 80,
+        "Output": 80, "Damp": 80
+    }
+
+    gr.Markdown("# Performance Editor")
+
+    all_interactive_inputs = []
+
+    # Define column layout based on width specification
+    columns = [
+        ("TG", col_widths["TG"]),
+        ("Link", col_widths["Link"]),
+        ("Alternate", col_widths["Alternate"]),
+        ("Voice", col_widths["Voice"]),
+        ("Receive", col_widths["Receive"]),
+        ("Low", col_widths["Low"]),
+        ("High", col_widths["High"]),
+        ("Detune", col_widths["Detune"]),
+        ("Shift", col_widths["Shift"]),
+        ("Volume", col_widths["Volume"]),
+        ("Output", col_widths["Output"]),
+        ("Damp", col_widths["Damp"])
+    ]
+
+    header_labels = {
+        "TG": "TG", "Link": "Link", "Alternate": "Alt", "Voice": "Patch",
+        "Receive": "Chan", "Low": "Low", "High": "High", "Detune": "Det",
+        "Shift": "Shift", "Volume": "Vol", "Output": "Out", "Damp": "Damp"
+    }
+    for i in range(-1, 8):
+        with gr.Group():
+            with gr.Row(scale=0, equal_height=True):
+                for col_name, col_width in columns:
+                    with gr.Column(scale=0, min_width=col_width):
+                        if i == -1:  # Header row
+                            gr.HTML(header_labels[col_name], container=False)
+                        else:  # Data rows
+                            if col_name == "TG":
+                                gr.Textbox(value=str(i + 1), show_label=False, interactive=False, container=False)
+                            elif col_name == "Link":
+                                elem = gr.Dropdown(choices=ON_OFF_CHOICES, value="Off", show_label=False, interactive=True, container=False)
+                                all_interactive_inputs.append(elem)
+                            elif col_name == "Alternate":
+                                elem = gr.Dropdown(choices=ON_OFF_CHOICES, value="Off", show_label=False, interactive=True, container=False)
+                                all_interactive_inputs.append(elem)
+                            elif col_name == "Voice":
+                                elem = gr.Dropdown(choices=PATCH_BANK, value=PATCH_BANK[i % len(PATCH_BANK)][1], show_label=False, interactive=True, container=False)
+                                voice_dropdowns.append(elem)
+                                all_interactive_inputs.append(elem)
+                            elif col_name == "Receive":
+                                elem = gr.Dropdown(choices=RECEIVE_CHOICES, value="Off", show_label=False, interactive=True, container=False)
+                                all_interactive_inputs.append(elem)
+                            elif col_name == "Low":
+                                elem = gr.Dropdown(choices=MIDI_NOTES, value="C-2", show_label=False, interactive=True, container=False)
+                                all_interactive_inputs.append(elem)
+                            elif col_name == "High":
+                                elem = gr.Dropdown(choices=MIDI_NOTES, value="G8", show_label=False, interactive=True, container=False)
+                                all_interactive_inputs.append(elem)
+                            elif col_name == "Detune":
+                                elem = gr.Number(minimum=0, maximum=15, step=1, value=7, show_label=False, interactive=True, container=False)
+                                all_interactive_inputs.append(elem)
+                            elif col_name == "Shift":
+                                elem = gr.Number(minimum=0, maximum=128, step=1, value=0, show_label=False, interactive=True, container=False)
+                                all_interactive_inputs.append(elem)
+                            elif col_name == "Volume":
+                                elem = gr.Number(minimum=0, maximum=100, step=1, value=80, show_label=False, interactive=True, container=False)
+                                all_interactive_inputs.append(elem)
+                            elif col_name == "Output":
+                                elem = gr.Dropdown(choices=OUTPUT_CHOICES, value="L&R", show_label=False, interactive=True, container=False)
+                                all_interactive_inputs.append(elem)
+                            elif col_name == "Damp":
+                                elem = gr.Dropdown(choices=ON_OFF_CHOICES, value="Off", show_label=False, interactive=True, container=False)
+                                all_interactive_inputs.append(elem)
+
+    output_display = gr.Textbox(label="Status", interactive=False)
+
+    param_names_per_tg = [
+        "UNKNOWN_Link",
+        "UNKNOWN_Alternate",
+        "VNUM",
+        "RXCH",
+        "NTMTL",
+        "NTMTH",
+        "DETUNE",
+        "NSHFT",
+        "OUTVOL",
+        "OUTCH",
+        "FDAMP"
+    ]
+
+    def handle_single_change(changed_value, index, current_patch_bank):
+        """
+        Handles a change in a single UI element and sends the corresponding
+        SysEx message to the TX802.
+        """
+        tg = index // 11 + 1  # Tone Generator number (1-8) [cite: 74]
+        param_pos = index % 11  # Parameter index within the TG's elements [cite: 74]
+        param_name = param_names_per_tg[param_pos]  # Get the base parameter name (e.g., "VNUM", "RXCH") [cite: 74]
+        key = f"{param_name}{tg}"  # Construct the full parameter key (e.g., "VNUM1", "RXCH1") [cite: 74]
+
+        internal_val = None
+        user_facing_value = changed_value  # Store the value from the UI for reporting
+
+        # --- Translate UI value to internal TX802 value ---
+        if param_name == "VNUM":
+            # Find the 1-based index of the selected patch name in the bank
+            try:
+                # current_patch_bank is the list of (id, name) tuples from PATCH_BANK state
+                patch_index_0_based = [name for _, name in current_patch_bank].index(changed_value)
+                internal_val = patch_index_0_based + 1  # VNUM is 1-based (1-32 or 1-128 depending on context, here 1-32 likely intended for bank slots) [cite: 119, 123]
+            except ValueError:
+                print(f"Warning: Patch '{changed_value}' not found in current bank. Cannot send VNUM update.")
+                return f"Error: Patch '{changed_value}' not found in bank."
+            # Special case: TX802 VNUM parameter within Performance Edit uses 1-128 range,
+            # referring to internal voice memory slots (I01-I32, C01-C64, P01-P32).
+            # This simple index lookup assumes the PATCH_BANK corresponds directly,
+        elif param_name == "RXCH":
+            internal_val = midi_channel_to_internal(changed_value)  # Convert "Off", "1"-"16", "Omni" [cite: 52]
+        elif param_name in ("NTMTL", "NTMTH"):
+            internal_val = note_name_to_midi(changed_value)  # Convert "C-2".."G8" to 0-127
+        elif param_name == "OUTCH":
+            internal_val = output_assign_to_code(changed_value)  # Convert "Off", "L", "R", "L&R" to 0-3 [cite: 55, 75]
+        elif param_name == "FDAMP":
+            internal_val = on_off_to_bool(changed_value)  # Convert "On"/"Off" to 1/0 [cite: 56]
+        elif param_name == "DETUNE":
+            # Ensure value is within 0-14 range expected by edit_performance [cite: 119, 123]
+            internal_val = int(changed_value)
+            if not (0 <= internal_val <= 14):
+                print(f"Warning: Detune value {internal_val} out of range (0-14). Clamping.")
+                internal_val = max(0, min(internal_val, 14))
+        elif param_name == "NSHFT":
+            # Ensure value is within 0-48 range expected by edit_performance [cite: 120, 124]
+            internal_val = int(changed_value)
+            if not (0 <= internal_val <= 48):
+                print(f"Warning: Note Shift value {internal_val} out of range (0-48). Clamping.")
+                internal_val = max(0, min(internal_val, 48))
+        elif param_name == "OUTVOL":
+            # Ensure value is within 0-99 range expected by edit_performance [cite: 119, 124]
+            internal_val = int(changed_value)
+            if not (0 <= internal_val <= 99):
+                print(f"Warning: Volume value {internal_val} out of range (0-99). Clamping.")
+                internal_val = max(0, min(internal_val, 99))
+        else:
+            internal_val = changed_value  # Use value directly (may need conversion for On/Off to 0/1 if not handled elsewhere)
+
+        # --- Send the SysEx message ---
+        if internal_val is not None:
+            # Check if midi_output is a valid, open port object
+            if not isinstance(midi_output, mido.ports.BaseOutput) or getattr(midi_output, 'closed', True):
+                status_message = "Error: MIDI Output Port not configured or closed."
+                print(status_message)
+                return status_message
+
+            try:
+                print(f"Sending: {key} = {user_facing_value} (Internal: {internal_val})")
+                # Use edit_performance with the assumed open midi_output port
+                # device_id=1 is a common default [cite: 89, 115]
+                success = edit_performance(
+                    port=midi_output,
+                    device_id=1,
+                    delay_after=0.02,  # Small delay after each param change [cite: 89]
+                    **{key: internal_val}  # Pass the single parameter change
+                )
+                if success:
+                    status_message = f"Sent: {key} = {user_facing_value}"
+                else:
+                    status_message = f"Failed to send: {key} = {user_facing_value}"
+                    print(status_message)  # Also print failure to console
+            except Exception as e:
+                status_message = f"Error sending {key}: {type(e).__name__}"
+                print(f"{status_message}: {e}")  # Print detailed error to console
+                import traceback
+                traceback.print_exc()  # Print stack trace for debugging
+        else:
+            # This case handles errors during value conversion (e.g., VNUM lookup failure)
+            status_message = f"Skipped sending {key}: Invalid value or state."
+
+        return status_message  # Update the status display textbox
+
+    # Attach a change handler to each element with index tracking
+    for idx, element in enumerate(all_interactive_inputs):
+        element.change(
+            fn=handle_single_change,  # Pass the function directly
+            # Pass the element's value, its index, and the current patch bank state
+            inputs=[element, gr.State(idx), patch_bank_state],
+            outputs=output_display  # Update the status textbox [cite: 76]
+        )
+
+def refresh_tab():
+    # Update all voice dropdowns with current PATCH_BANK
+    return [gr.update(choices=PATCH_BANK, value=PATCH_BANK[i % len(PATCH_BANK)][1]) for i in range(8)]
+
+def get_refresh_outputs():
+    """Returns the components that need to be refreshed"""
+    global voice_dropdowns
+    return voice_dropdowns
