@@ -106,7 +106,7 @@ Observe the TX802 Panel; it should reflect the changes these scripts are sending
 
 ## 🤖 A Note on AI Assistance
 
-This project was developed with the help of AI tools, but as a veteran coder (since before the TX802 ever hit the market!), I steered the AI diligently, and reviewed the generated code to the best of my abilities. Or, as Inspector Sledge Hammer used to say, "Trust me, I know what I'm doing!"
+This project was developed with the help of AI tools, but not through "Vibe Coding". As a veteran coder since before the TX802 even hit the market, I manually wrote code and reviewed the generated parts to the best of my abilities. Or, as Inspector Sledge Hammer used to say, "Trust me, I know what I'm doing!"
 
 ## 📌 TODO
 
