@@ -62,8 +62,8 @@ Collected from various Usenet archives, forums, and synth enthusiast sites over 
 
 It is recommended to use a virtual environment. On Windows, for example:
 
-> git clone <repo-url>  
-> cd <repo-folder>  
+> git clone https://github.com/Helge666/802_Manager  
+> cd 802_Manager  
 > python -m venv .venv  
 > .venv\Scripts\activate  
 > pip install -r requirements.txt
