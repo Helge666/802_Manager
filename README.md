@@ -15,6 +15,10 @@ These libraries enable:
 - Full remote operation of the TX802 panel — all buttons, plus new macros like `REBOOT`, `PRTCT_OFF`, `TEXT`
 - Live Sysex parameter editing
 
+
+## 📸 Remote Panel Control
+<img src="assets/screenshots/04_panel_tab.png" width="600"/>
+
 ## 🎨 Design Philosophy and Limitations
 
 TX802 Manager was designed with modern studio users in mind — people who love this vintage classic, but don’t necessarily want to operate it from its (*let’s say*) *“period-accurate”* front panel.
@@ -26,7 +30,11 @@ TX802 Manager was designed with modern studio users in mind — people who love 
 
 (Besides, the dx_patch_library already contains tens of thousands of patches. Think you'd come up with an entirely new one? Well... who knows 😉)
 
----
+### Caveat:
+This is a work in progress that has some known issues that I'm working on whenever I find the time.
+
+## 📸 The Patch Browser
+<img src="assets/screenshots/02_browser_tab.png" width="600"/>
 
 ## 📚 Sources & Acknowledgements
 
@@ -46,7 +54,9 @@ Scanned and uploaded by:
 **Documentation PDFs & Manuals**  
 Collected from various Usenet archives, forums, and synth enthusiast sites over the years. Some new reference documents were created during the development of this tool suite.
 
----
+## 📸 The Performance Editor
+<img src="assets/screenshots/03_perform_tab.png" width="600"/>
+
 
 ## 🔧 Installation
 
@@ -58,7 +68,7 @@ It is recommended to use a virtual environment. On Windows, for example:
 > .venv\Scripts\activate  
 > pip install -r requirements.txt
 
-After intallation, start the TX802 Manager GUI with
+After installation, start the TX802 Manager GUI with
 > python app/main.py
 
 After startup, open the GUI in e.g. Chrome by clicking on http://localhost:7860
@@ -73,6 +83,9 @@ After startup, open the GUI in e.g. Chrome by clicking on http://localhost:7860
 - python-rtmidi 1.5.8+
 
 The application should also work on Linux and macOS, though it hasn't been tested yet. If you add support, please do so in an OS-agnostic way so the tool remains portable and platform-independent.
+
+## 📸 Settings Page
+<img src="assets/screenshots/01_settings_tab.png" width="600"/>
 
 ## 🧪 CLI Test Scenarios
 
@@ -106,7 +119,7 @@ Observe the TX802 Panel; it should reflect the changes these scripts are sending
 
 ## 🤖 A Note on AI Assistance
 
-This project was developed with the help of AI tools, but not through "Vibe Coding". As a veteran coder since before the TX802 even hit the market, I manually wrote code and reviewed the generated parts to the best of my abilities. Or, as Inspector Sledge Hammer used to say, "Trust me, I know what I'm doing!"
+This project was developed with the help of AI tools, but not through "Vibe Coding". As a veteran coder since before the TX802 even hit the market, I manually wrote code and reviewed the generated parts to the best of my abilities. Or, as Inspector Sledge Hammer used to say right when the TX802 was state of the art: "Trust me, I know what I'm doing!"
 
 ## 📌 TODO
 
