@@ -1,7 +1,8 @@
 import gradio as gr
 import datetime
 from core.tx802_utils import edit_performance
-from app.state import midi_output, PATCH_BANK
+# from app.state import midi_output, PATCH_BANK
+import app.state as state
 import mido
 
 # --- Constants and Helper Functions ---
@@ -64,10 +65,6 @@ def build_internal_patch_data(inputs):
         base = tg * cols_per_tg
         tg_num = tg + 1  # TG1–TG8
 
-        # Map each field by position
-        result[f"UNKNOWN_Link{tg_num}"] = inputs[base + 0]
-        result[f"UNKNOWN_Alternate{tg_num}"] = inputs[base + 1]
-
         # Future: Patch to voice number mapping
         patch_name = inputs[base + 2]
         result[f"VNUM{tg_num}"] = f"[FUTURE: {patch_name}]" if isinstance(patch_name, str) else "[FUTURE: Unknown]"
@@ -101,10 +98,10 @@ def setup_tab():
     global voice_dropdowns
     voice_dropdowns = []
 
-    patch_bank_state = gr.State(PATCH_BANK)
+    patch_bank_state = gr.State(state.PATCH_BANK)
 
     col_widths = {
-        "TG": 50, "Link": 80, "Alternate": 80, "Voice": 160,
+        "TG": 50, "Link": 70, "Voice": 160,
         "Receive": 90, "Low": 80, "High": 80,
         "Detune": 70, "Shift": 70, "Volume": 80,
         "Output": 80, "Damp": 80
@@ -118,7 +115,6 @@ def setup_tab():
     columns = [
         ("TG", col_widths["TG"]),
         ("Link", col_widths["Link"]),
-        ("Alternate", col_widths["Alternate"]),
         ("Voice", col_widths["Voice"]),
         ("Receive", col_widths["Receive"]),
         ("Low", col_widths["Low"]),
@@ -131,7 +127,7 @@ def setup_tab():
     ]
 
     header_labels = {
-        "TG": "TG", "Link": "Link", "Alternate": "Alt", "Voice": "Patch",
+        "TG": "TG", "Link": "Link", "Voice": "Patch",
         "Receive": "Chan", "Low": "Low", "High": "High", "Detune": "Det",
         "Shift": "Shift", "Volume": "Vol", "Output": "Out", "Damp": "Damp"
     }
@@ -146,13 +142,10 @@ def setup_tab():
                             if col_name == "TG":
                                 gr.Textbox(value=str(i + 1), show_label=False, interactive=False, container=False)
                             elif col_name == "Link":
-                                elem = gr.Dropdown(choices=ON_OFF_CHOICES, value="Off", show_label=False, interactive=True, container=False)
-                                all_interactive_inputs.append(elem)
-                            elif col_name == "Alternate":
-                                elem = gr.Dropdown(choices=ON_OFF_CHOICES, value="Off", show_label=False, interactive=True, container=False)
+                                elem = gr.Dropdown(choices=["On", "Off"], value="On", show_label=False, interactive=True, container=False)
                                 all_interactive_inputs.append(elem)
                             elif col_name == "Voice":
-                                elem = gr.Dropdown(choices=PATCH_BANK, value=PATCH_BANK[i % len(PATCH_BANK)][1], show_label=False, interactive=True, container=False)
+                                elem = gr.Dropdown(choices=state.PATCH_BANK, value=state.PATCH_BANK[i % len(state.PATCH_BANK)][1], show_label=False, interactive=True, container=False)
                                 voice_dropdowns.append(elem)
                                 all_interactive_inputs.append(elem)
                             elif col_name == "Receive":
@@ -183,8 +176,7 @@ def setup_tab():
     output_display = gr.Textbox(label="Status", interactive=False)
 
     param_names_per_tg = [
-        "UNKNOWN_Link",
-        "UNKNOWN_Alternate",
+        "LINK",
         "VNUM",
         "RXCH",
         "NTMTL",
@@ -201,9 +193,15 @@ def setup_tab():
         Handles a change in a single UI element and sends the corresponding
         SysEx message to the TX802.
         """
-        tg = index // 11 + 1  # Tone Generator number (1-8) [cite: 74]
-        param_pos = index % 11  # Parameter index within the TG's elements [cite: 74]
+        interactive_cols_per_tg = 10
+
+        tg = index // interactive_cols_per_tg + 1  # Tone Generator number (1-8) [cite: 74]
+        param_pos = index % interactive_cols_per_tg  # Parameter index within the TG's elements [cite: 74]
+
         param_name = param_names_per_tg[param_pos]  # Get the base parameter name (e.g., "VNUM", "RXCH") [cite: 74]
+
+        print(f"[DEBUG] index={index}, tg={tg}, param_pos={param_pos}, param_name={param_name}, changed_value={changed_value}")
+
         key = f"{param_name}{tg}"  # Construct the full parameter key (e.g., "VNUM1", "RXCH1") [cite: 74]
 
         internal_val = None
@@ -222,6 +220,38 @@ def setup_tab():
             # Special case: TX802 VNUM parameter within Performance Edit uses 1-128 range,
             # referring to internal voice memory slots (I01-I32, C01-C64, P01-P32).
             # This simple index lookup assumes the PATCH_BANK corresponds directly,
+        elif param_name == "LINK":
+            if changed_value == "On":
+                success = edit_performance(
+                    port=state.midi_output,
+                    device_id=1,
+                    delay_after=0.02,
+                    **{
+                        f"OUTCH{tg}": 3,  # L&R
+                        f"OUTVOL{tg}": 80
+                    }
+                )
+                if success:
+                    state.handle_tg_output_change(tg, 3)
+                    state.update_tg_state(tg, "OUTVOL", 80)
+                    state.update_tg_state(tg, "LINK", 1)
+                    status_message = f"TG{tg} activated."
+            else:
+                success = edit_performance(
+                    port=state.midi_output,
+                    device_id=1,
+                    delay_after=0.02,
+                    **{
+                        f"OUTCH{tg}": 0
+                    }
+                )
+                if success:
+                    state.handle_tg_output_change(tg, 0)
+                    state.update_tg_state(tg, "LINK", 0)
+                    status_message = f"TG{tg} deactivated."
+
+            return status_message
+
         elif param_name == "RXCH":
             internal_val = midi_channel_to_internal(changed_value)  # Convert "Off", "1"-"16", "Omni" [cite: 52]
         elif param_name in ("NTMTL", "NTMTH"):
@@ -251,39 +281,40 @@ def setup_tab():
         else:
             internal_val = changed_value  # Use value directly (may need conversion for On/Off to 0/1 if not handled elsewhere)
 
-        # --- Send the SysEx message ---
         if internal_val is not None:
-            # Check if midi_output is a valid, open port object
-            if not isinstance(midi_output, mido.ports.BaseOutput) or getattr(midi_output, 'closed', True):
+            # --- Send the SysEx message first ---
+            if not isinstance(state.midi_output, mido.ports.BaseOutput) or getattr(state.midi_output, 'closed', True):
                 status_message = "Error: MIDI Output Port not configured or closed."
                 print(status_message)
                 return status_message
 
             try:
                 print(f"Sending: {key} = {user_facing_value} (Internal: {internal_val})")
-                # Use edit_performance with the assumed open midi_output port
-                # device_id=1 is a common default [cite: 89, 115]
                 success = edit_performance(
-                    port=midi_output,
+                    port=state.midi_output,
                     device_id=1,
-                    delay_after=0.02,  # Small delay after each param change [cite: 89]
-                    **{key: internal_val}  # Pass the single parameter change
+                    delay_after=0.02,
+                    **{key: internal_val}
                 )
                 if success:
                     status_message = f"Sent: {key} = {user_facing_value}"
+
+                    # --- 🛠️ Only now update tg_states ---
+                    if param_name == "VNUM":
+                        state.handle_tg_voice_change(tg, internal_val)
+                    elif param_name == "OUTCH":
+                        state.handle_tg_output_change(tg, internal_val)
+                    else:
+                        state.update_tg_state(tg, param_name, internal_val)
+
                 else:
                     status_message = f"Failed to send: {key} = {user_facing_value}"
-                    print(status_message)  # Also print failure to console
+                    print(status_message)
             except Exception as e:
-                status_message = f"Error sending {key}: {type(e).__name__}"
-                print(f"{status_message}: {e}")  # Print detailed error to console
-                import traceback
-                traceback.print_exc()  # Print stack trace for debugging
-        else:
-            # This case handles errors during value conversion (e.g., VNUM lookup failure)
-            status_message = f"Skipped sending {key}: Invalid value or state."
+                status_message = f"Error sending SysEx: {e}"
+                print(status_message)
 
-        return status_message  # Update the status display textbox
+            return status_message
 
     # Attach a change handler to each element with index tracking
     for idx, element in enumerate(all_interactive_inputs):
@@ -296,7 +327,7 @@ def setup_tab():
 
 def refresh_tab():
     # Update all voice dropdowns with current PATCH_BANK
-    return [gr.update(choices=PATCH_BANK, value=PATCH_BANK[i % len(PATCH_BANK)][1]) for i in range(8)]
+    return [gr.update(choices=state.PATCH_BANK, value=state.PATCH_BANK[i % len(state.PATCH_BANK)][1]) for i in range(8)]
 
 def get_refresh_outputs():
     """Returns the components that need to be refreshed"""

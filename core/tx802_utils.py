@@ -258,7 +258,6 @@ def edit_performance(port, device_id=1, delay_after=0.05, **kwargs):
     - PNAM<Index> (Index=1-20): Performance Name Character (ASCII char or code 0-127)
 
     Parameters NOT supported via this function:
-    - KASG (Key Assign Group)
     - MTTNUM (Micro Tuning Table Number)
     """
     print(f"\n--- Editing Performance Parameters (Device ID: {device_id}) ---")
@@ -283,6 +282,7 @@ def edit_performance(port, device_id=1, delay_after=0.05, **kwargs):
     # Type can be 'int' or 'char'
     param_map = {}
     for tg in range(1, 9):  # TG 1 to 8
+        param_map[f'KASG{tg}'] = (80 + (tg - 1), 0, 1, 'kasg', False)
         param_map[f'VCHOFS{tg}'] = (0 + (tg - 1), 0, 7, 'int', False)
         param_map[f'RXCH{tg}'] = (8 + (tg - 1), 1, 16, 'int', True) # User inputs 1-16 (16=OMNI)
         param_map[f'VNUM{tg}'] = (16 + (tg - 1), 1, 128, 'int', True) # User inputs 1-128
@@ -357,6 +357,17 @@ def edit_performance(port, device_id=1, delay_after=0.05, **kwargs):
                      all_success = False
                      continue
                 internal_value = char_code # No adjustment needed for char codes
+            elif param_type == 'kasg':
+                kasg_val = int(value)
+
+                # Validate
+                if not (0 <= kasg_val <= 1):
+                    print(f"Warning: Value {kasg_val} for '{param_name}' out of valid KASG range (0-1). Skipping.")
+                    all_success = False
+                    continue
+
+                internal_value = kasg_val  # Send as raw 0 or 1
+
 
         except ValueError:
             print(f"Warning: Could not interpret value '{value}' for '{param_name}' as {param_type}. Skipping.")
@@ -520,6 +531,10 @@ def parse_button_with_repeat(button_str):
     if '=' in button_str:
         button_name, repeat_str = button_str.split('=', 1)
         button_name = button_name.strip().upper()
+
+        # Handle CODE=n specially: don't treat repeat_str as repeat count
+        if button_name.startswith('CODE'):
+            return f'CODE={repeat_str}', 1  # No repeat, just one send
 
         # Special case for TEXT parameter
         if button_name == 'TEXT':
@@ -776,12 +791,21 @@ def press_button(port, button_name, device_id=1, delay_after=0):
 
     # Validate button name
     button_name = button_name.upper()
-    if button_name not in BUTTON_CODES:
-        print(f"Error: Unknown button name '{button_name}'. Valid buttons are: {', '.join(BUTTON_CODES.keys())}")
-        return False
 
-    # Get button code
-    button_code = BUTTON_CODES[button_name]
+    if button_name.startswith('CODE='):
+        try:
+            button_code = int(button_name.split('=')[1])
+            if not (0 <= button_code <= 127):
+                print(f"Error: CODE value out of range (0-127): {button_code}")
+                return False
+        except (ValueError, IndexError):
+            print(f"Error: Invalid CODE format: {button_name}")
+            return False
+    else:
+        if button_name not in BUTTON_CODES:
+            print(f"Error: Unknown button name '{button_name}'. Valid buttons are: {', '.join(BUTTON_CODES.keys())}")
+            return False
+        button_code = BUTTON_CODES[button_name]
 
     # Prepare device ID
     internal_device_id = device_id - 1

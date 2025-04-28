@@ -134,3 +134,37 @@ def update_patch_bank(slot, patch_name):
     if 0 <= slot < 32:
         PATCH_BANK[slot] = (patch_name, slot + 1)
     #  print(f"Updated PATCH_BANK slot {slot} with {patch_name}")
+
+
+# 8 TGs, with all parameters defaulted
+tg_states = {tg: {
+    "LINK": 0,
+    "VNUM": 0,
+    "RXCH": 0,
+    "NTMTL": 0,
+    "NTMTH": 127,
+    "DETUNE": 7,
+    "NSHFT": 0,
+    "OUTVOL": 0,
+    "OUTCH": 0,
+    "FDAMP": 0
+} for tg in range(1, 9)}
+
+def init_tx802_performance_state():
+    for tg in range(1, 9):
+        for key in tg_states[tg]:
+            tg_states[tg][key] = 0
+        tg_states[tg]["DETUNE"] = 7
+        tg_states[tg]["NTMTH"] = 127
+
+def update_tg_state(tg, key, value):
+    if tg in tg_states and key in tg_states[tg]:
+        tg_states[tg][key] = value
+
+def handle_tg_voice_change(tg, vnum):
+    update_tg_state(tg, "VNUM", vnum)
+    # Optional: also auto-set OUTCH if you want (e.g., L&R by default)
+    update_tg_state(tg, "OUTCH", 3)
+
+def handle_tg_output_change(tg, output_code):
+    update_tg_state(tg, "OUTCH", output_code)
