@@ -142,7 +142,7 @@ def setup_tab():
                             if col_name == "TG":
                                 gr.Textbox(value=str(i + 1), show_label=False, interactive=False, container=False)
                             elif col_name == "Link":
-                                elem = gr.Dropdown(choices=["On", "Off"], value="On", show_label=False, interactive=True, container=False)
+                                elem = gr.Dropdown(choices=["On", "Off"], value="Off", show_label=False, interactive=True, container=False)
                                 all_interactive_inputs.append(elem)
                             elif col_name == "Voice":
                                 elem = gr.Dropdown(choices=state.PATCH_BANK, value=state.PATCH_BANK[i % len(state.PATCH_BANK)][1], show_label=False, interactive=True, container=False)
@@ -222,33 +222,15 @@ def setup_tab():
             # This simple index lookup assumes the PATCH_BANK corresponds directly,
         elif param_name == "LINK":
             if changed_value == "On":
-                success = edit_performance(
-                    port=state.midi_output,
-                    device_id=1,
-                    delay_after=0.02,
-                    **{
-                        f"OUTCH{tg}": 3,  # L&R
-                        f"OUTVOL{tg}": 80
-                    }
-                )
-                if success:
-                    state.handle_tg_output_change(tg, 3)
-                    state.update_tg_state(tg, "OUTVOL", 80)
-                    state.update_tg_state(tg, "LINK", 1)
-                    status_message = f"TG{tg} activated."
+                state.update_tg_state(tg, "LINK", 1)
+                status_message = f"TG{tg} activated."
             else:
-                success = edit_performance(
-                    port=state.midi_output,
-                    device_id=1,
-                    delay_after=0.02,
-                    **{
-                        f"OUTCH{tg}": 0
-                    }
-                )
-                if success:
-                    state.handle_tg_output_change(tg, 0)
-                    state.update_tg_state(tg, "LINK", 0)
-                    status_message = f"TG{tg} deactivated."
+                state.update_tg_state(tg, "LINK", 0)
+                status_message = f"TG{tg} deactivated."
+
+            for tg, tg_settings in state.tg_states.items():
+                link_state = tg_settings['LINK']
+                print(f"TG{tg} LINK={link_state}")
 
             return status_message
 
