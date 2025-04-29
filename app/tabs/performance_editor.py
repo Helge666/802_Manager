@@ -228,9 +228,9 @@ def setup_tab():
                 state.update_tg_state(tg, "LINK", 0)
                 status_message = f"TG{tg} deactivated."
 
-            for tg, tg_settings in state.tg_states.items():
-                link_state = tg_settings['LINK']
-                print(f"TG{tg} LINK={link_state}")
+            # Calculate which sysex messages need to be emitted to
+            # put the device into the desired TG configuration.
+            tg_state_calc()
 
             return status_message
 
@@ -315,3 +315,35 @@ def get_refresh_outputs():
     """Returns the components that need to be refreshed"""
     global voice_dropdowns
     return voice_dropdowns
+
+
+def tg_state_calc():
+    # Store all link states in a dictionary
+    all_link_states = {}
+
+    # First pass: collect all link states
+    for tg, tg_settings in state.tg_states.items():
+        link_state = tg_settings['LINK']
+        # print(f"TG{tg} LINK={link_state}")
+        all_link_states[int(tg)] = link_state
+
+    # Create the single visual representation
+    visual = "["
+    for i in range(1, 9):
+        column = f"I{i:02d}"
+
+        # Special case for TG1 - always show as "01"
+        if i == 1:
+            visual += column
+        # For TG2-TG8, show "<--" if link state is 1
+        elif i in all_link_states and all_link_states[i] == 1:
+            visual += "<--"
+        else:
+            visual += column
+
+        # Add separator except after the last column
+        if i < 8:
+            visual += "|"
+
+    visual += "]"
+    print(visual)
