@@ -222,17 +222,19 @@ def setup_tab():
             # This simple index lookup assumes the PATCH_BANK corresponds directly,
         elif param_name == "LINK":
             if changed_value == "On":
+                internal_val = 1
                 state.update_tg_state(tg, "LINK", 1)
                 status_message = f"TG{tg} activated."
             else:
+                internal_val = tg
                 state.update_tg_state(tg, "LINK", 0)
                 status_message = f"TG{tg} deactivated."
 
             # Calculate which sysex messages need to be emitted to
             # put the device into the desired TG configuration.
-            tg_state_calc()
+            # tg_state_calc()
 
-            return status_message
+            # return status_message
 
         elif param_name == "RXCH":
             internal_val = midi_channel_to_internal(changed_value)  # Convert "Off", "1"-"16", "Omni" [cite: 52]
@@ -317,14 +319,13 @@ def get_refresh_outputs():
     return voice_dropdowns
 
 
-def tg_state_calc():
+def linking_display():
     # Store all link states in a dictionary
     all_link_states = {}
 
     # First pass: collect all link states
     for tg, tg_settings in state.tg_states.items():
         link_state = tg_settings['LINK']
-        # print(f"TG{tg} LINK={link_state}")
         all_link_states[int(tg)] = link_state
 
     # Create the single visual representation
