@@ -293,6 +293,7 @@ def edit_performance(port, device_id=1, delay_after=0.05, **kwargs):
         param_map[f'NTMTH{tg}'] = (56 + (tg - 1), 0, 127, 'int', False)
         param_map[f'NSHFT{tg}'] = (64 + (tg - 1), 0, 48, 'int', False)
         param_map[f'FDAMP{tg}'] = (72 + (tg - 1), 0, 1, 'int', False)
+        param_map[f'LINK{tg}'] = (tg - 1, 1, 8, 'int', True)
     for idx in range(1, 21):  # PNAM 1 to 20 (Performance name allows for 20 chars)
         param_map[f'PNAM{idx}'] = (96 + (idx - 1), 0, 127, 'char', False) # ASCII range
 
