@@ -98,6 +98,8 @@ def setup_tab():
     global voice_dropdowns
     voice_dropdowns = []
 
+    state.init_tx802_performance_state()
+
     patch_bank_state = gr.State(state.PATCH_BANK)
 
     col_widths = {
@@ -217,9 +219,6 @@ def setup_tab():
             except ValueError:
                 print(f"Warning: Patch '{changed_value}' not found in current bank. Cannot send VNUM update.")
                 return f"Error: Patch '{changed_value}' not found in bank."
-            # Special case: TX802 VNUM parameter within Performance Edit uses 1-128 range,
-            # referring to internal voice memory slots (I01-I32, C01-C64, P01-P32).
-            # This simple index lookup assumes the PATCH_BANK corresponds directly,
         elif param_name == "LINK":
             if changed_value == "Off":
                 internal_val = 1
@@ -227,9 +226,6 @@ def setup_tab():
             else:
                 internal_val = tg
                 state.update_tg_state(tg, "LINK", 0)
-
-            status_message = lcd_display()
-
         elif param_name == "RXCH":
             internal_val = midi_channel_to_internal(changed_value)  # Convert "Off", "1"-"16", "Omni" [cite: 52]
         elif param_name in ("NTMTL", "NTMTH"):
@@ -272,10 +268,12 @@ def setup_tab():
                     port=state.midi_output,
                     device_id=1,
                     delay_after=0.02,
+                    play_notes = False,
                     **{key: internal_val}
                 )
                 if success:
-                    status_message = f"Sent: {key} = {user_facing_value}"
+                    # status_message = f"Sent: {key} = {user_facing_value}"
+                    status_message = lcd_display()
 
                     # --- 🛠️ Only now update tg_states ---
                     if param_name == "VNUM":

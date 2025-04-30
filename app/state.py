@@ -1,6 +1,7 @@
 from mido import open_input, open_output, get_input_names, get_output_names
 import threading
 import time
+from core.tx802_utils import edit_performance
 
 '''
 This module makes shared states available globally for all
@@ -156,6 +157,11 @@ def init_tx802_performance_state():
             tg_states[tg][key] = 0
         tg_states[tg]["DETUNE"] = 7
         tg_states[tg]["NTMTH"] = 127
+        tg_states[tg]["LINK"] = 0
+
+        # Link all TG>1 to left
+        if tg>1:
+            edit_performance(port=midi_output,device_id=1,delay_after=0.02,play_notes=False,**{f"LINK{tg}": 1})
 
 def update_tg_state(tg, key, value):
     if tg in tg_states and key in tg_states[tg]:
@@ -164,7 +170,7 @@ def update_tg_state(tg, key, value):
 def handle_tg_voice_change(tg, vnum):
     update_tg_state(tg, "VNUM", vnum)
     # Optional: also auto-set OUTCH if you want (e.g., L&R by default)
-    update_tg_state(tg, "OUTCH", 3)
+    #  update_tg_state(tg, "OUTCH", 3)
 
 def handle_tg_output_change(tg, output_code):
     update_tg_state(tg, "OUTCH", output_code)

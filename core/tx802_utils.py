@@ -237,7 +237,7 @@ def send_sysex_message(port, message_data, description="", delay_after=0.1):
 
 # Performance functions
 ##################################################
-def edit_performance(port, device_id=1, delay_after=0.05, **kwargs):
+def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kwargs):
     """
     Edits parameters in the TX802 Performance Edit Buffer (PCED) via SysEx Parameter Change messages.
 
@@ -422,7 +422,8 @@ def edit_performance(port, device_id=1, delay_after=0.05, **kwargs):
             all_success = False
             # Decide whether to continue or break on failure (currently continues)
 
-    play_test_notes(port)
+    if play_notes: play_test_notes(port)
+
     print("--- Performance Parameter Edit Finished ---")
     return all_success
 
@@ -508,6 +509,7 @@ def send_parameter_edits(edits_str, device_id=1, output_port=None, delay=0.05):
                 port=out_port,
                 device_id=device_id,
                 delay_after=delay,
+                play_notes=True,
                 **params_to_edit
             )
     except Exception as e:
