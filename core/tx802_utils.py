@@ -6,6 +6,7 @@ import time
 import json
 import os
 
+from starlette.templating import pass_context
 
 # Constants
 ##################################################
@@ -735,7 +736,7 @@ def press_button(port, button_name, device_id=1, delay_after=0):
     # Some buttons duplicated with different names for user convenience
     BUTTON_CODES = {
         # Special Function Buttons
-        'REBOOT': 64,  # Soft reboot, like sys64738 on a Commodore 64
+        'REBOOT': 64,  # Soft reboot, inittialises menus and edit buffers
         'INT': 75,
         'CRT': 76,
         'LOWERCASE': 78,
@@ -795,7 +796,10 @@ def press_button(port, button_name, device_id=1, delay_after=0):
     # Validate button name
     button_name = button_name.upper()
 
-    if button_name.startswith('CODE='):
+    if button_name.startswith('WAIT'):
+        time.sleep(1)
+        return True
+    elif button_name.startswith('CODE='):
         try:
             button_code = int(button_name.split('=')[1])
             if not (0 <= button_code <= 127):
@@ -804,6 +808,9 @@ def press_button(port, button_name, device_id=1, delay_after=0):
         except (ValueError, IndexError):
             print(f"Error: Invalid CODE format: {button_name}")
             return False
+    elif button_name.startswith('WAIT='):
+        button_code = int(button_name.split('=')[1])
+        print("Would press wait:", button_code)
     else:
         if button_name not in BUTTON_CODES:
             print(f"Error: Unknown button name '{button_name}'. Valid buttons are: {', '.join(BUTTON_CODES.keys())}")
@@ -897,9 +904,9 @@ def process_button_sequence(out_port, sequence, device_id=1, delay=0.1, verbose=
             for i in range(repeat_value):
                 if verbose:
                     if repeat_value > 1:
-                        print(f"  Pressing '{button_name}' (repeat {i + 1}/{repeat_value})")
+                        print(f"  Executing '{button_name}' (repeat {i + 1}/{repeat_value})")
                     else:
-                        print(f"  Pressing '{button_name}'")
+                        print(f"  Executing '{button_name}'")
                 if not press_button(out_port, button_name, device_id, delay):
                     success = False
 
@@ -910,7 +917,7 @@ def process_button_sequence(out_port, sequence, device_id=1, delay=0.1, verbose=
 
 def send_button_sequence(sequence, device_id=1, delay=0.1, output_port=None, verbose=True):
     """
-    Main function for importing - sends a button sequence to the TX802
+    Sends a button sequence to the TX802
 
     Args:
         sequence: String with comma-separated button commands or a list of button commands
@@ -1544,3 +1551,9 @@ def send_patch_to_buffer(sysex_data, device_id=1, output_port=None):
                 print(f"Error sending All Notes Off: {e}")
             out_port.close()
             print("Closed Output Port.")
+
+
+# Miscellaneous / Helpers
+##################################################
+def tx802_startup_items():
+    pass

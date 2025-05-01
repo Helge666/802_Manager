@@ -1,9 +1,8 @@
 import gradio as gr
-import datetime
-from core.tx802_utils import edit_performance
-# from app.state import midi_output, PATCH_BANK
-import app.state as state
 import mido
+
+from core.tx802_utils import edit_performance
+import app.state as state
 
 # --- Constants and Helper Functions ---
 voice_dropdowns = []
@@ -42,43 +41,6 @@ def output_assign_to_code(val: str) -> int:
 
 def on_off_to_bool(val: str) -> int:
     return 1 if val == "On" else 0
-
-def build_internal_patch_data(inputs):
-    result = {}
-    tgs = 8
-    cols_per_tg = 11
-
-    for tg in range(tgs):
-        base = tg * cols_per_tg
-        tg_num = tg + 1  # TG1–TG8
-
-        # Future: Patch to voice number mapping
-        patch_name = inputs[base + 2]
-        result[f"VNUM{tg_num}"] = f"[FUTURE: {patch_name}]" if isinstance(patch_name, str) else "[FUTURE: Unknown]"
-
-        # MIDI Channel
-        result[f"RXCH{tg_num}"] = midi_channel_to_internal(inputs[base + 3])
-
-        # Note Limits
-        result[f"NTMTL{tg_num}"] = note_name_to_midi(inputs[base + 4])
-        result[f"NTMTH{tg_num}"] = note_name_to_midi(inputs[base + 5])
-
-        # Detune
-        result[f"DETUNE{tg_num}"] = inputs[base + 6]
-
-        # Note Shift
-        result[f"NSHFT{tg_num}"] = inputs[base + 7]
-
-        # Output Volume
-        result[f"OUTVOL{tg_num}"] = inputs[base + 8]
-
-        # Output Assign
-        result[f"OUTCH{tg_num}"] = output_assign_to_code(inputs[base + 9])
-
-        # Damp
-        result[f"FDAMP{tg_num}"] = on_off_to_bool(inputs[base + 10])
-
-    return result
 
 # --- Gradio Tab Setup Functions ---
 def setup_tab():
@@ -132,6 +94,7 @@ def setup_tab():
                                 gr.Textbox(value=str(i + 1), show_label=False, interactive=False, container=False)
                             elif col_name == "Link":
                                 if i == 0:
+                                    # TG1 is always on
                                     elem = gr.Dropdown(choices=["On", "Off"], value="On", show_label=False, interactive=False, container=False)
                                 else:
                                     elem = gr.Dropdown(choices=["On", "Off"], value="Off", show_label=False, interactive=True, container=False)
@@ -254,18 +217,10 @@ def setup_tab():
 
             try:
                 print(f"Sending: {key} = {user_facing_value} (Internal: {internal_val})")
-                success = edit_performance(
-                    port=state.midi_output,
-                    device_id=1,
-                    delay_after=0.02,
-                    play_notes = False,
-                    **{key: internal_val}
-                )
+                success = edit_performance(port=state.midi_output, device_id=1, delay_after=0.02, play_notes = False, **{key: internal_val})
                 if success:
-                    # status_message = f"Sent: {key} = {user_facing_value}"
                     status_message = lcd_display()
-
-                    # --- 🛠️ Only now update tg_states ---
+                    # --- Update tg_states ---
                     if param_name == "VNUM":
                         state.handle_tg_voice_change(tg, internal_val)
                     elif param_name == "OUTCH":
@@ -315,11 +270,7 @@ def lcd_display():
     for i in range(1, 9):
         column = f"I{i:02d}"
 
-        # Special case for TG1 - always show as "01"
-        if i == 1:
-            visual += column
-        # For TG2-TG8, show "<--" if link state is 1
-        elif i in all_link_states and all_link_states[i] == 1:
+        if i in all_link_states and all_link_states[i] == 1:
             visual += "<--"
         else:
             visual += column

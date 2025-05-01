@@ -159,10 +159,6 @@ def init_tx802_performance_state():
         tg_states[tg]["NTMTH"] = 127
         tg_states[tg]["LINK"] = 0
 
-        # Link all TG>1 to left
-        if tg>1:
-            edit_performance(port=midi_output,device_id=1,delay_after=0.02,play_notes=False,**{f"LINK{tg}": 1})
-
 def update_tg_state(tg, key, value):
     if tg in tg_states and key in tg_states[tg]:
         tg_states[tg][key] = value
