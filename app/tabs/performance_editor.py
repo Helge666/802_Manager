@@ -48,7 +48,6 @@ def setup_tab():
     voice_dropdowns = []
 
     state.init_tx802_performance_state()
-
     patch_bank_state = gr.State(state.PATCH_BANK)
 
     col_widths = {
@@ -218,6 +217,7 @@ def setup_tab():
             try:
                 print(f"Sending: {key} = {user_facing_value} (Internal: {internal_val})")
                 success = edit_performance(port=state.midi_output, device_id=1, delay_after=0.02, play_notes = False, **{key: internal_val})
+
                 if success:
                     status_message = lcd_display()
                     # --- Update tg_states ---

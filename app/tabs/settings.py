@@ -1,7 +1,7 @@
 import gradio as gr
 import app.state
 import mido
-from core.tx802_utils import play_test_notes as play_test_notes_util, load_config, save_config
+from core.tx802_utils import play_test_notes as play_test_notes_util, load_config, save_config, process_button_sequence, tx802_startup_items
 
 state_manager = app.state
 
@@ -115,6 +115,18 @@ def setup_tab():
     if default_out:
         state_manager.set_output_port(default_out, auto_restart_forwarding=False)
         output_status.value = f"✅ Set to: {default_out}"
+
+        # Reset TX802 to known init state
+        # May be configurable in the future (init yes/no)
+        # In that case, TG state tracking must also be
+        # synchronised!
+        process_button_sequence(
+            out_port=state_manager.midi_output,
+            sequence=tx802_startup_items(),
+            device_id=1,
+            delay=0.1,
+            verbose=True
+        )
     if default_in:
         state_manager.set_input_port(default_in, auto_restart_forwarding=False)
         input_status.value = f"✅ Set to: {default_in}"

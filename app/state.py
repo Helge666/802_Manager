@@ -1,7 +1,6 @@
 from mido import open_input, open_output, get_input_names, get_output_names
 import threading
 import time
-from core.tx802_utils import edit_performance
 
 '''
 This module makes shared states available globally for all

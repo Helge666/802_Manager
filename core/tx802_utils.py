@@ -225,7 +225,7 @@ def send_sysex_message(port, message_data, description="", delay_after=0.1):
 
         msg = mido.Message('sysex', data=message_data)
         print(f"Sending {description}")
-        # Uncomment to print bank to console
+        # Uncomment to print sysex to console
         print(msg.hex())
         port.send(msg)
         if delay_after > 0:
@@ -736,7 +736,7 @@ def press_button(port, button_name, device_id=1, delay_after=0):
     # Some buttons duplicated with different names for user convenience
     BUTTON_CODES = {
         # Special Function Buttons
-        'REBOOT': 64,  # Soft reboot, inittialises menus and edit buffers
+        'RESET': 64,  # Soft reboot, inittialises menus and edit buffers
         'INT': 75,
         'CRT': 76,
         'LOWERCASE': 78,
@@ -1556,4 +1556,11 @@ def send_patch_to_buffer(sysex_data, device_id=1, output_port=None):
 # Miscellaneous / Helpers
 ##################################################
 def tx802_startup_items():
-    pass
+    return [
+        "RESET",                                    # Reset internals (e.g. buffers)
+        "WAIT=4",                                   # Allow some time for unit to resume listening
+        "PRTCT_OFF",                                # Required to change values on the device
+        "UTILITY", "TG5", "YES", "YES", "WAIT",     # Init Performance (TG8-TG2 => TG1)
+        "SYSTEM_SETUP", "TG4", "TG4", "MINUS_ONE",  # Set Voice Bank receive to I1-I32
+        "VOICE_SELECT"                              # Switch LCD to main menu
+    ]

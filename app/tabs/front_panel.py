@@ -93,7 +93,7 @@ def setup_tab():
             with gr.Row():
                 gr.Button("PRTCT OFF", scale=0, variant="primary").click(lambda: send_button("PRTCT_OFF"), outputs=status)
                 gr.Button("PRTCT ON", scale=0).click(lambda: send_button("PRTCT_ON"), outputs=status)
-                gr.Button("REBOOT", scale=0).click(lambda: send_button("REBOOT"), outputs=status)
+                gr.Button("RESET", scale=0).click(lambda: send_button("RESET"), outputs=status)
                 gr.Button("POS1", scale=0).click(lambda: send_button("POS1"), outputs=status)
                 gr.Button("Play Notes", scale=0).click(play_test, outputs=status)
 

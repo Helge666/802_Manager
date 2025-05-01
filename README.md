@@ -12,7 +12,7 @@ These libraries enable:
 - A suite of optional command-line tools
 - Sysex patch extraction and creation, integrity checks, hash-based deduplication, and more
 - SQLite database handling: storing sysex + metadata (origin, source syxes file, etc.)
-- Full remote operation of the TX802 panel — all buttons, plus new macros like `REBOOT`, `PRTCT_OFF`, `TEXT`
+- Full remote operation of the TX802 panel — all buttons, plus new macros like `RESET`, `PRTCT_OFF`, `TEXT`
 - Live Sysex parameter editing
 
 
