@@ -17,7 +17,7 @@ def get_midi_note_name(note_number):
 
 MIDI_NOTES = [get_midi_note_name(i) for i in range(128)]
 ON_OFF_CHOICES = ["Off", "On"]
-RECEIVE_CHOICES = ["Off"] + [str(i) for i in range(1, 17)] + ["Omni"]
+RECEIVE_CHOICES = [str(i) for i in range(1, 17)] + ["Omni"]
 OUTPUT_CHOICES = ["L", "R", "L&R"]
 
 def note_name_to_midi(note_name: str) -> int:
@@ -103,7 +103,7 @@ def setup_tab():
                                 voice_dropdowns.append(elem)
                                 all_interactive_inputs.append(elem)
                             elif col_name == "Receive":
-                                elem = gr.Dropdown(choices=RECEIVE_CHOICES, value="Off", show_label=False, interactive=True, container=False)
+                                elem = gr.Dropdown(choices=RECEIVE_CHOICES, value="1", show_label=False, interactive=True, container=False)
                                 all_interactive_inputs.append(elem)
                             elif col_name == "Low":
                                 elem = gr.Dropdown(choices=MIDI_NOTES, value="C-2", show_label=False, interactive=True, container=False)
@@ -118,7 +118,7 @@ def setup_tab():
                                 elem = gr.Number(minimum=0, maximum=128, step=1, value=0, show_label=False, interactive=True, container=False)
                                 all_interactive_inputs.append(elem)
                             elif col_name == "Volume":
-                                elem = gr.Number(minimum=0, maximum=100, step=1, value=80, show_label=False, interactive=True, container=False)
+                                elem = gr.Number(minimum=0, maximum=100, step=1, value=75, show_label=False, interactive=True, container=False)
                                 all_interactive_inputs.append(elem)
                             elif col_name == "Output":
                                 elem = gr.Dropdown(choices=OUTPUT_CHOICES, value="L&R", show_label=False, interactive=True, container=False)

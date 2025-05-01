@@ -123,6 +123,7 @@ This project was developed with the help of AI tools, but not through "Vibe Codi
 
 ## 📌 TODO
 
+- Conifg-Option: Save TG State / Load TG State on Start
 - Commit patch bank to unit on PE tab switch (if uncommitted)
 - Avoid updating unchanged slots in PE
 - Add DB selector to Settings
