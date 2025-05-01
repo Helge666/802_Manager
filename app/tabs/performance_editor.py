@@ -21,19 +21,6 @@ ON_OFF_CHOICES = ["Off", "On"]
 RECEIVE_CHOICES = ["Off"] + [str(i) for i in range(1, 17)] + ["Omni"]
 OUTPUT_CHOICES = ["L", "R", "L&R"]
 
-# --- Dummy Processing Function ---
-def off_handle_interface_data(*all_row_inputs):
-    print(f"--- Dummy Function Triggered ---")
-    print(f"Timestamp: {datetime.datetime.now()}")
-    print(f"Received {len(all_row_inputs)} parameters.")
-
-    return {
-        "status": "OK",
-        "message": "Dummy function executed successfully.",
-        "received_elements": len(all_row_inputs),
-        "timestamp": datetime.datetime.now().isoformat()
-    }
-
 def note_name_to_midi(note_name: str) -> int:
     try:
         return MIDI_NOTES.index(note_name)
@@ -144,7 +131,10 @@ def setup_tab():
                             if col_name == "TG":
                                 gr.Textbox(value=str(i + 1), show_label=False, interactive=False, container=False)
                             elif col_name == "Link":
-                                elem = gr.Dropdown(choices=["On", "Off"], value="Off", show_label=False, interactive=True, container=False)
+                                if i == 0:
+                                    elem = gr.Dropdown(choices=["On", "Off"], value="On", show_label=False, interactive=False, container=False)
+                                else:
+                                    elem = gr.Dropdown(choices=["On", "Off"], value="Off", show_label=False, interactive=True, container=False)
                                 all_interactive_inputs.append(elem)
                             elif col_name == "Voice":
                                 elem = gr.Dropdown(choices=state.PATCH_BANK, value=state.PATCH_BANK[i % len(state.PATCH_BANK)][1], show_label=False, interactive=True, container=False)
