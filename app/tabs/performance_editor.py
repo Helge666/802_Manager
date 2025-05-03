@@ -245,10 +245,10 @@ def setup_tab():
 
         elif param_name == "LINK":
             if changed_value == "On":
-                internal_val = 1  # Send 1 → edit_performance subtracts 1 → 0 → links TG
+                internal_val = tg  # ✅ Activate TG (unlink)
                 state.update_tg_state(tg, "LINK", "On")
             else:
-                internal_val = tg  # Send TG number → subtracts 1 → unlinks TG
+                internal_val = 1  # ✅ Deactivate TG (link)
                 state.update_tg_state(tg, "LINK", "Off")
 
         elif param_name == "RXCH":

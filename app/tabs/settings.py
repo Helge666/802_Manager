@@ -145,7 +145,7 @@ def setup_tab():
                             raise ValueError(f"Invalid LINK value in config for TG{tg}: {value!r}")
                         # Convert from "On"/"Off" to the internal TX802 value
                         # internal_val = 0 if value == "On" else tg
-                        internal_val = 1 if value == "On" else tg
+                        internal_val = tg if value == "On" else 1
                         state_manager.update_tg_state(tg, param_name, value)  # store string
                         button_commands[f"LINK{tg}"] = internal_val  # send int
                     else:
