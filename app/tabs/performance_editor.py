@@ -1,10 +1,17 @@
 import gradio as gr
 import mido
+import threading
+import time
 
-from core.tx802_utils import edit_performance
+from core.tx802_utils import edit_performance, save_config, load_config
 import app.state as state
 
 # --- Constants and Helper Functions ---
+
+# Debounce State
+_config_dirty = False
+_config_save_timer = None
+
 voice_dropdowns = []
 
 def get_midi_note_name(note_number):
