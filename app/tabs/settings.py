@@ -129,6 +129,9 @@ def setup_tab():
         # Initialize software state to match the known hardware state
         state_manager.init_tx802_performance_state()
 
+        # Create a dictionary of button commands for process_button_sequence
+        button_commands = {}
+
         # Now check if we have saved performance parameters
         # When loading saved parameters
         # After loading values into the state
@@ -137,10 +140,16 @@ def setup_tab():
             for tg_str, params in config["performance_params"].items():
                 tg = int(tg_str)
                 for param_name, value in params.items():
-                    state_manager.update_tg_state(tg, param_name, value)
-
-            # Create a dictionary of button commands for process_button_sequence
-            button_commands = {}
+                    if param_name == "LINK":
+                        if value not in ("On", "Off"):
+                            raise ValueError(f"Invalid LINK value in config for TG{tg}: {value!r}")
+                        # Convert from "On"/"Off" to the internal TX802 value
+                        # internal_val = 0 if value == "On" else tg
+                        internal_val = 1 if value == "On" else tg
+                        state_manager.update_tg_state(tg, param_name, value)  # store string
+                        button_commands[f"LINK{tg}"] = internal_val  # send int
+                    else:
+                        state_manager.update_tg_state(tg, param_name, value)
 
             # Build a human-readable log string
             readable_sequence = []
@@ -148,9 +157,12 @@ def setup_tab():
             for tg in range(1, 9):
                 tg_line = [f"TG{tg}:"]
                 for param_name, value in state_manager.tg_states[tg].items():
+                    if param_name == "LINK":
+                        continue  # Already handled above — don’t overwrite
                     key = f"{param_name}{tg}"
                     button_commands[key] = value
                     tg_line.append(f"{param_name}{tg}={value}")
+
                 readable_sequence.append(" → ".join(tg_line))
 
             # Print the sequence

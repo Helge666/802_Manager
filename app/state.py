@@ -138,7 +138,7 @@ def update_patch_bank(slot, patch_name):
 
 # --- Define a default TG state as a reusable constant ---
 DEFAULT_TG_STATE = {
-    "LINK": 0,
+    "LINK": "On",
     "VNUM": 0,
     "RXCH": 1,       # User-facing default channel
     "NTMTL": 0,

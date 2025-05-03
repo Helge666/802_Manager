@@ -256,6 +256,7 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
     - NTMTH<TG> (TG=1-8): Note Limit High (0-127, C-2 to G8)
     - NSHFT<TG> (TG=1-8): Note Shift (0-48, 24=Center)
     - FDAMP<TG> (TG=1-8): EG Forced Damp (0: off, 1: on)
+    - LINK<TG> (TG=0/TG=<self>): 0 linnks/switches off the TG; self unlinks/switches ON the TG
     - PNAM<Index> (Index=1-20): Performance Name Character (ASCII char or code 0-127)
     """
     print(f"\n--- Editing Performance Parameters (Device ID: {device_id}) ---")

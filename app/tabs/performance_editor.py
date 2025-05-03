@@ -75,6 +75,22 @@ def output_assign_to_code(val: str) -> int:
 def on_off_to_bool(val: str) -> int:
     return 1 if val == "On" else 0
 
+def get_ui_default(tg, param):
+    val = state.tg_states[tg][param]
+    if param == "LINK":
+        return state.tg_states[tg]["LINK"]
+    elif param == "RXCH":
+        return str(val)
+    elif param == "NTMTL" or param == "NTMTH":
+        return get_midi_note_name(val)
+    elif param == "OUTCH":
+        return {0: "L", 1: "R", 2: "L&R"}.get(val, "L")
+    elif param == "FDAMP":
+        return "On" if val else "Off"
+    elif param == "VNUM":
+        return state.PATCH_BANK[val - 1][0] if val > 0 else "Init"
+    return val
+
 # --- Gradio Tab Setup Functions ---
 def setup_tab():
     global voice_dropdowns
@@ -124,13 +140,29 @@ def setup_tab():
                         else:  # Data rows
                             if col_name == "TG":
                                 gr.Textbox(value=str(i + 1), show_label=False, interactive=False, container=False)
+
                             elif col_name == "Link":
+                                default_val = state.tg_states[i + 1]["LINK"]  # Get current string value: "On" or "Off"
                                 if i == 0:
-                                    # TG1 is always on
-                                    elem = gr.Dropdown(choices=["On", "Off"], value="On", show_label=False, interactive=False, container=False)
+                                    # TG1 is always on and not editable
+                                    elem = gr.Dropdown(
+                                        choices=["On", "Off"],
+                                        value="On",
+                                        show_label=False,
+                                        interactive=False,
+                                        container=False
+                                    )
                                 else:
-                                    elem = gr.Dropdown(choices=["On", "Off"], value="Off", show_label=False, interactive=True, container=False)
+                                    elem = gr.Dropdown(
+                                        choices=["On", "Off"],
+                                        value=default_val,  # ← Use actual stored value
+                                        show_label=False,
+                                        interactive=True,
+                                        container=False
+                                    )
+
                                 all_interactive_inputs.append(elem)
+
                             elif col_name == "Voice":
                                 elem = gr.Dropdown(choices=state.PATCH_BANK, value=state.PATCH_BANK[i % len(state.PATCH_BANK)][1], show_label=False, interactive=True, container=False)
                                 voice_dropdowns.append(elem)
@@ -185,6 +217,9 @@ def setup_tab():
         """
         interactive_cols_per_tg = 10
 
+        status_message = ""
+        save_status = "No save"
+
         tg = index // interactive_cols_per_tg + 1  # Tone Generator number (1-8) [cite: 74]
         param_pos = index % interactive_cols_per_tg  # Parameter index within the TG's elements [cite: 74]
 
@@ -207,13 +242,15 @@ def setup_tab():
             except ValueError:
                 print(f"Warning: Patch '{changed_value}' not found in current bank. Cannot send VNUM update.")
                 return f"Error: Patch '{changed_value}' not found in bank."
+
         elif param_name == "LINK":
-            if changed_value == "Off":
-                internal_val = 1
-                state.update_tg_state(tg, "LINK", 1)
+            if changed_value == "On":
+                internal_val = 1  # Send 1 → edit_performance subtracts 1 → 0 → links TG
+                state.update_tg_state(tg, "LINK", "On")
             else:
-                internal_val = tg
-                state.update_tg_state(tg, "LINK", 0)
+                internal_val = tg  # Send TG number → subtracts 1 → unlinks TG
+                state.update_tg_state(tg, "LINK", "Off")
+
         elif param_name == "RXCH":
             internal_val = midi_channel_to_internal(changed_value)  # Convert "Off", "1"-"16", "Omni" [cite: 52]
         elif param_name in ("NTMTL", "NTMTH"):
@@ -251,8 +288,14 @@ def setup_tab():
                 return status_message
 
             try:
-                print(f"Sending: {key} = {user_facing_value} (Internal: {internal_val})")
+                print(f"[DEBUG] Calling edit_performance with: {key} = {internal_val} (type={type(internal_val)})")
+
+                print(f"[CHECKPOINT] Will send: {key=} {internal_val=}, before config save.")
+                print(f"[CHECKPOINT] Current tg_states[{tg}]['LINK'] = {state.tg_states[tg]['LINK']} ({type(state.tg_states[tg]['LINK'])})")
+
                 success = edit_performance(port=state.midi_output, device_id=1, delay_after=0.02, play_notes = False, **{key: internal_val})
+
+                print(f"[AFTER] tg_states[{tg}]['LINK'] = {state.tg_states[tg]['LINK']} ({type(state.tg_states[tg]['LINK'])})")
 
                 if success:
                     status_message = lcd_display()
@@ -261,7 +304,7 @@ def setup_tab():
                         state.handle_tg_voice_change(tg, internal_val)
                     elif param_name == "OUTCH":
                         state.handle_tg_output_change(tg, internal_val)
-                    else:
+                    elif param_name != "LINK":  # 👈 block LINK from being re-written
                         state.update_tg_state(tg, param_name, internal_val)
 
                     # --- Schedule config save ---
