@@ -35,7 +35,7 @@ def schedule_debounced_config_save(current_tg_states):
     if _config_save_timer:
         _config_save_timer.cancel()
 
-    _config_save_timer = threading.Timer(0.1, _save_later)
+    _config_save_timer = threading.Timer(5, _save_later)
     _config_save_timer.start()
 
     return "⚠️ Save pending"
