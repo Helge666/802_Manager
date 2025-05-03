@@ -1558,7 +1558,7 @@ def send_patch_to_buffer(sysex_data, device_id=1, output_port=None):
 def tx802_startup_items():
     return [
         "RESET",                                    # Reset internals (e.g. buffers)
-        "WAIT=4",                                   # Allow some time for unit to resume listening
+        "WAIT=3",                                   # Allow some time for unit to resume listening
         "PRTCT_OFF",                                # Required to change values on the device
         "UTILITY", "TG5", "YES", "YES", "WAIT",     # Init Performance (TG8-TG2 => TG1)
         "SYSTEM_SETUP", "TG4", "TG4", "MINUS_ONE",  # Set Voice Bank receive to I1-I32
