@@ -257,9 +257,6 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
     - NSHFT<TG> (TG=1-8): Note Shift (0-48, 24=Center)
     - FDAMP<TG> (TG=1-8): EG Forced Damp (0: off, 1: on)
     - PNAM<Index> (Index=1-20): Performance Name Character (ASCII char or code 0-127)
-
-    Parameters NOT supported via this function:
-    - MTTNUM (Micro Tuning Table Number)
     """
     print(f"\n--- Editing Performance Parameters (Device ID: {device_id}) ---")
 

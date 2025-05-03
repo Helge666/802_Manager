@@ -130,29 +130,40 @@ def setup_tab():
         state_manager.init_tx802_performance_state()
 
         # Now check if we have saved performance parameters
+        # When loading saved parameters
+        # After loading values into the state
         if "performance_params" in config:
             # Load the saved parameters into our state
             for tg_str, params in config["performance_params"].items():
-                tg = int(tg_str)  # Convert string TG number to integer
+                tg = int(tg_str)
                 for param_name, value in params.items():
                     state_manager.update_tg_state(tg, param_name, value)
 
-            # Send the loaded state to the hardware - one TG at a time
-            for tg in range(1, 9):
-                # Convert parameters to the format expected by edit_performance
-                formatted_params = {}
-                for param_name, value in state_manager.tg_states[tg].items():
-                    key = f"{param_name}{tg}"  # Format as "PARAM_NAMEn" (e.g., "VNUM1", "RXCH2")
-                    formatted_params[key] = value
+            # Create a dictionary of button commands for process_button_sequence
+            button_commands = {}
 
-                # Send to the hardware
-                edit_performance(
-                    port=state_manager.midi_output,
-                    device_id=1,
-                    delay_after=0.02,
-                    play_notes=False,
-                    **formatted_params
-                )
+            # Build a human-readable log string
+            readable_sequence = []
+
+            for tg in range(1, 9):
+                tg_line = [f"TG{tg}:"]
+                for param_name, value in state_manager.tg_states[tg].items():
+                    key = f"{param_name}{tg}"
+                    button_commands[key] = value
+                    tg_line.append(f"{param_name}{tg}={value}")
+                readable_sequence.append(" → ".join(tg_line))
+
+            # Print the sequence
+            print("\n".join(readable_sequence))
+
+            # Call the performance editor with unpacked parameters
+            edit_performance(
+                state_manager.midi_output,
+                1,
+                0.1,
+                False,
+                **button_commands
+            )
 
     if default_in:
         state_manager.set_input_port(default_in, auto_restart_forwarding=False)

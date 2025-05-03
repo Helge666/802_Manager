@@ -136,11 +136,11 @@ def update_patch_bank(slot, patch_name):
     #  print(f"Updated PATCH_BANK slot {slot} with {patch_name}")
 
 
-# 8 TGs, with all parameters defaulted
-tg_states = {tg: {
+# --- Define a default TG state as a reusable constant ---
+DEFAULT_TG_STATE = {
     "LINK": 0,
     "VNUM": 0,
-    "RXCH": 0,
+    "RXCH": 1,       # User-facing default channel
     "NTMTL": 0,
     "NTMTH": 127,
     "DETUNE": 7,
@@ -148,15 +148,14 @@ tg_states = {tg: {
     "OUTVOL": 0,
     "OUTCH": 0,
     "FDAMP": 0
-} for tg in range(1, 9)}
+}
+
+# --- Initialize TG states using that default ---
+tg_states = {tg: DEFAULT_TG_STATE.copy() for tg in range(1, 9)}
 
 def init_tx802_performance_state():
     for tg in range(1, 9):
-        for key in tg_states[tg]:
-            tg_states[tg][key] = 0
-        tg_states[tg]["DETUNE"] = 7
-        tg_states[tg]["NTMTH"] = 127
-        tg_states[tg]["LINK"] = 0
+        tg_states[tg] = DEFAULT_TG_STATE.copy()
 
 def update_tg_state(tg, key, value):
     if tg in tg_states and key in tg_states[tg]:
