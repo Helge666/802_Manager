@@ -1,7 +1,7 @@
 import gradio as gr
 import app.state
 import mido
-from core.tx802_utils import play_test_notes as play_test_notes_util, load_config, save_config, process_button_sequence, tx802_startup_items
+from core.tx802_utils import play_test_notes as play_test_notes_util, load_config, save_config, process_button_sequence, tx802_startup_items, edit_performance
 
 state_manager = app.state
 
@@ -112,14 +112,12 @@ def setup_tab():
     forwarding_toggle.change(on_forwarding_toggle, inputs=forwarding_toggle, outputs=forwarding_status)
 
     # Automatically set ports if valid saved values exist
+    # and sync unit with savec config if existing
     if default_out:
         state_manager.set_output_port(default_out, auto_restart_forwarding=False)
         output_status.value = f"✅ Set to: {default_out}"
 
-        # Reset TX802 to known init state
-        # May be configurable in the future (init yes/no)
-        # In that case, TG state tracking must also be
-        # synchronised!
+        # First reset TX802 to known init state
         process_button_sequence(
             out_port=state_manager.midi_output,
             sequence=tx802_startup_items(),
@@ -127,6 +125,35 @@ def setup_tab():
             delay=0.1,
             verbose=True
         )
+
+        # Initialize software state to match the known hardware state
+        state_manager.init_tx802_performance_state()
+
+        # Now check if we have saved performance parameters
+        if "performance_params" in config:
+            # Load the saved parameters into our state
+            for tg_str, params in config["performance_params"].items():
+                tg = int(tg_str)  # Convert string TG number to integer
+                for param_name, value in params.items():
+                    state_manager.update_tg_state(tg, param_name, value)
+
+            # Send the loaded state to the hardware - one TG at a time
+            for tg in range(1, 9):
+                # Convert parameters to the format expected by edit_performance
+                formatted_params = {}
+                for param_name, value in state_manager.tg_states[tg].items():
+                    key = f"{param_name}{tg}"  # Format as "PARAM_NAMEn" (e.g., "VNUM1", "RXCH2")
+                    formatted_params[key] = value
+
+                # Send to the hardware
+                edit_performance(
+                    port=state_manager.midi_output,
+                    device_id=1,
+                    delay_after=0.02,
+                    play_notes=False,
+                    **formatted_params
+                )
+
     if default_in:
         state_manager.set_input_port(default_in, auto_restart_forwarding=False)
         input_status.value = f"✅ Set to: {default_in}"

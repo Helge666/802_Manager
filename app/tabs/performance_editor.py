@@ -80,7 +80,7 @@ def setup_tab():
     global voice_dropdowns
     voice_dropdowns = []
 
-    state.init_tx802_performance_state()
+    # state.init_tx802_performance_state()
     patch_bank_state = gr.State(state.PATCH_BANK)
 
     col_widths = {
