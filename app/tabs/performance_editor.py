@@ -127,7 +127,10 @@ def setup_tab():
                                 elem = gr.Dropdown(choices=ON_OFF_CHOICES, value="Off", show_label=False, interactive=True, container=False)
                                 all_interactive_inputs.append(elem)
 
-    output_display = gr.Textbox(label="Status", interactive=False)
+    with gr.Row():
+        output_display = gr.Textbox(label="Action", interactive=False, scale=5)
+        save_status_display = gr.Textbox(label="Status", value="✅ Config Saved", visible=True, scale=1)
+
 
     param_names_per_tg = [
         "LINK",
