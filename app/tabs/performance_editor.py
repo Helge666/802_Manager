@@ -14,38 +14,31 @@ _config_save_timer = None
 
 voice_dropdowns = []
 
-def schedule_debounced_config_save(current_tg_states, save_status_component):
-    """Schedule a debounced config save. Resets the timer if already running."""
+def schedule_debounced_config_save(current_tg_states):
+    """Schedules a debounced config save. Returns 'pending' immediately, and 'saved' later."""
     global _config_dirty, _config_save_timer
 
     _config_dirty = True  # Mark config as needing save
 
-    # Update UI status immediately to "Save pending"
-    save_status_component.update(value="⚠️ Save pending")
-
     def _save_later():
         global _config_dirty, _config_save_timer
-        time.sleep(5.0)  # Wait the debounce delay
+        time.sleep(5.0)
 
-        # If still dirty, save the config and update status
         if _config_dirty:
             config = load_config()
             config["performance_params"] = current_tg_states.copy()
             save_config(config)
             _config_dirty = False
 
-            # Update the UI again (safe because Gradio passes components by reference)
-            save_status_component.update(value="✅ Config Saved")
+        _config_save_timer = None
 
-        _config_save_timer = None  # Clear timer reference
-
-    # Cancel existing timer, if any
     if _config_save_timer:
         _config_save_timer.cancel()
 
-    # Start a new timer
     _config_save_timer = threading.Timer(0.1, _save_later)
     _config_save_timer.start()
+
+    return "⚠️ Save pending"
 
 def get_midi_note_name(note_number):
     if not 0 <= note_number <= 127:
@@ -271,6 +264,9 @@ def setup_tab():
                     else:
                         state.update_tg_state(tg, param_name, internal_val)
 
+                    # --- Schedule config save ---
+                    save_status = schedule_debounced_config_save(state.tg_states)
+
                 else:
                     status_message = f"Failed to send: {key} = {user_facing_value}"
                     print(status_message)
@@ -278,7 +274,7 @@ def setup_tab():
                 status_message = f"Error sending SysEx: {e}"
                 print(status_message)
 
-            return status_message
+            return status_message, save_status
 
     # Attach a change handler to each element with index tracking
     for idx, element in enumerate(all_interactive_inputs):
@@ -286,7 +282,7 @@ def setup_tab():
             fn=handle_single_change,  # Pass the function directly
             # Pass the element's value, its index, and the current patch bank state
             inputs=[element, gr.State(idx), patch_bank_state],
-            outputs=output_display  # Update the status textbox [cite: 76]
+            outputs=[output_display, save_status_display] # Update the status textbox
         )
 
 def refresh_tab():
