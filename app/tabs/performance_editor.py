@@ -8,7 +8,7 @@ import app.state as state
 
 # --- Constants and Helper Functions ---
 
-# Debounce State
+# Debounce State.
 _config_dirty = False
 _config_save_timer = None
 
