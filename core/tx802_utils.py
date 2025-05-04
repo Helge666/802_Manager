@@ -28,7 +28,6 @@ PMEM_HEADER_START = bytes([0x7E, 0x01, 0x28])  # Following F0 43 0n
 PMEM_IDENTIFIER = b'LM--8952PM'  # The identifier string that follows
 PMEM_BULK_SIZE = 11589  # Total bulk size as mentioned in the spec
 
-
 # MIDI Port functions
 ##################################################
 def load_config():
@@ -248,15 +247,19 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
     Supported Parameters (Case-Insensitive Keys):
     - VNUM<TG> (TG=1-8): Voice Number (1-128) -> Internal 0-127
     - VCHOFS<TG> (TG=1-8): Voice Channel Offset (0-7)
-    - RXCH<TG> (TG=1-8): MIDI Receive Channel (1-16, OMNI) -> Internal 0-15, 16=OMNI
-    - DETUNE<TG> (TG=1-8): Detune (0-14, 7=Center)
+    - RXCH<TG> (TG=1-8): MIDI Receive Channel (1-16 or 'Omni') -> Internal 0-15, 16=OMNI
+    - DETUNE<TG> (TG=1-8): Detune (0-14, 7=Center / optionally: -7 to +7 with 0=Center)
     - OUTVOL<TG> (TG=1-8): Output Volume (0-99)
     - OUTCH<TG> (TG=1-8): Output Assign (0: off, 1: I/L, 2: II/R, 3: I+II / L+R)
     - NTMTL<TG> (TG=1-8): Note Limit Low (0-127, C-2 to G8)
     - NTMTH<TG> (TG=1-8): Note Limit High (0-127, C-2 to G8)
+    - NOTELOW<TG> (TG=1-8): MIDI Note Low Limit specified as note name (C-2 to G8); converted internally to NTMTL<TG>
+    - NOTEHIGH<TG> (TG=1-8): MIDI Note High Limit specified as note name (C-2 to G8); converted internally to NTMTH<TG>
     - NSHFT<TG> (TG=1-8): Note Shift (0-48, 24=Center)
     - FDAMP<TG> (TG=1-8): EG Forced Damp (0: off, 1: on)
-    - LINK<TG> (TG=0/TG=<self>): 0 linnks/switches off the TG; self unlinks/switches ON the TG
+    - PAN<TG> (TG=1-8): Panning; accepts Off, I/Left, II/Right, I+II/Center; maps to OUTCH<TG>
+    - LINK<TG> (TG=1-8): 0 unlinks/switches OFF the TG; self (1-8) links/switches ON the TG
+    - TG<TG> (TG=1-8): Tone Generator On/Off; accepts On → LINK<TG>=<TG>, Off → LINK<TG>=0
     - PNAM<Index> (Index=1-20): Performance Name Character (ASCII char or code 0-127)
     """
     print(f"\n--- Editing Performance Parameters (Device ID: {device_id}) ---")
@@ -292,7 +295,7 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
         param_map[f'NTMTH{tg}'] = (56 + (tg - 1), 0, 127, 'int', False)
         param_map[f'NSHFT{tg}'] = (64 + (tg - 1), 0, 48, 'int', False)
         param_map[f'FDAMP{tg}'] = (72 + (tg - 1), 0, 1, 'int', False)
-        param_map[f'LINK{tg}'] = (tg - 1, 1, 8, 'int', True)
+        param_map[f'LINK{tg}'] = (tg - 1, 0, 8, 'int', True)
     for idx in range(1, 21):  # PNAM 1 to 20 (Performance name allows for 20 chars)
         param_map[f'PNAM{idx}'] = (96 + (idx - 1), 0, 127, 'char', False) # ASCII range
 
@@ -300,6 +303,99 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
 
     for key, value in kwargs.items():
         key_upper = key.upper()
+
+        # Optional Parameter Mappings
+        # ―――――――――――――――――――――――――――――――――――
+        if key_upper.startswith("NOTELOW"):
+            # TG extrahieren (Zahl 1–8)
+            tg = key_upper[len("NOTELOW"):]
+            if tg.isdigit() and 1 <= int(tg) <= 8:
+                midi_name = str(value).upper()
+                if midi_name in MIDI_NOTES:
+                    numeric = MIDI_NOTES.index(midi_name)
+                    # Umwandlung auf den internen Parameternamen/-wert
+                    key_upper = f"NTMTL{tg}"
+                    value = numeric
+                else:
+                    print(f"Warning: Unknown MIDI note name '{value}' for NOTELOW{tg}. Skipping.")
+                    all_success = False
+                    continue
+            else:
+                print(f"Warning: Invalid TG '{tg}' for {key}. Skipping.")
+                all_success = False
+                continue
+
+        if key_upper.startswith("NOTEHIGH"):
+            # TG extrahieren (Zahl 1–8)
+            tg = key_upper[len("NOTEHIGH"):]
+            if tg.isdigit() and 1 <= int(tg) <= 8:
+                midi_name = str(value).upper()
+                if midi_name in MIDI_NOTES:
+                    numeric = MIDI_NOTES.index(midi_name)
+                    key_upper = f"NTMTH{tg}"
+                    value = numeric
+                else:
+                    print(f"Warning: Unknown MIDI note name '{value}' for NOTEHIGH{tg}. Skipping.")
+                    all_success = False
+                    continue
+            else:
+                print(f"Warning: Invalid TG '{tg}' for {key}. Skipping.")
+                all_success = False
+                continue
+
+        if key_upper.startswith("PAN"):
+            # TG extrahieren (Zahl 1–8)
+            tg = key_upper[len("PAN"):]
+            if tg.isdigit() and 1 <= int(tg) <= 8:
+                val_str = str(value).upper()
+                pan_map = {
+                    'OFF': 0,
+                    'I': 1, 'LEFT': 1,
+                    'II': 2, 'RIGHT': 2,
+                    'I+II': 3, 'CENTER': 3
+                }
+                if val_str in pan_map:
+                    numeric = pan_map[val_str]
+                    # Intern zu OUTCH<TG> umwandeln
+                    key_upper = f"OUTCH{tg}"
+                    value = numeric
+                else:
+                    print(f"Warning: Unknown PAN value '{value}' for PAN{tg}. Skipping.")
+                    all_success = False
+                    continue
+            else:
+                print(f"Warning: Invalid TG '{tg}' for {key}. Skipping.")
+                all_success = False
+                continue
+
+        if key_upper.startswith("TG"):
+            # TG-Nummer extrahieren (1–8)
+            tg = key_upper[len("TG"):]
+            if tg.isdigit() and 1 <= int(tg) <= 8:
+                val_str = str(value).upper()
+                if val_str == 'ON':
+                    # On → LINK<TG>=<TG>
+                    key_upper = f"LINK{tg}"
+                    value = int(tg)
+                elif val_str == 'OFF':
+                    # Off → LINK<TG>=0
+                    key_upper = f"LINK{tg}"
+                    value = 0
+                else:
+                    print(f"Warning: Unknown TG value '{value}' for TG{tg}. Use On or Off. Skipping.")
+                    all_success = False
+                    continue
+            else:
+                print(f"Warning: Invalid TG '{tg}' for {key}. Skipping.")
+                all_success = False
+                continue
+
+        # Allow "Omni" string for RXCH<TG> → internal 16
+        if key_upper.startswith("RXCH"):
+            if isinstance(value, str) and value.strip().upper() == "OMNI":
+                value = 16
+        # ―――――――――――――――――――――――――――――――――――
+
         mapped_param = None
         param_name = None
 
@@ -322,22 +418,37 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
         try:
             if param_type == 'int':
                 user_value = int(value)
-                # Validate against the user-expected range
-                if not (user_min <= user_value <= user_max):
-                    print(f"Warning: Value {user_value} for '{param_name}' out of user range ({user_min}-{user_max}). Skipping.")
-                    all_success = False
-                    continue
-
-                # Apply 1-based to 0-based adjustment if needed
-                if needs_adjustment:
-                    # Special case: RXCH OMNI (User value 16 maps to internal value 16)
-                    if param_name.startswith("RXCH") and user_value == 16:
-                        internal_value = 16
+                # ――― Special DETUNE Handling: allow -7..+7 around center ―――
+                if param_name.startswith("DETUNE"):
+                    # relative ±7 → internal 0–14
+                    if -7 <= user_value <= 7:
+                        internal_value = user_value + 7
+                    # absolute 0–14 as before
+                    elif 0 <= user_value <= user_max:
+                        internal_value = user_value
                     else:
-                        internal_value = user_value - 1 # Standard adjustment
+                        print(f"Warning: Value {user_value} for '{param_name}' out of allowed range (-7 to +{user_max}). Skipping.")
+                        all_success = False
+                        continue
                 else:
-                    # No adjustment needed
-                    internal_value = user_value
+                    # Validate against the user-expected range
+                    if not (user_min <= user_value <= user_max):
+                        print(f"Warning: Value {user_value} for '{param_name}' out of user range ({user_min}-{user_max}). Skipping.")
+                        all_success = False
+                        continue
+
+                    # Apply 1-based to 0-based adjustment if needed
+                    if needs_adjustment:
+                        # Special case: LINKx Off -> internal 0
+                        if param_name.startswith("LINK") and user_value == 0:
+                            internal_value = 0
+                        # Special case: RXCH OMNI
+                        elif param_name.startswith("RXCH") and user_value == 16:
+                            internal_value = 16
+                        else:
+                            internal_value = user_value - 1
+                    else:
+                        internal_value = user_value
 
             elif param_type == 'char':
                 # Handle character parameter (PNAM)
@@ -1562,3 +1673,13 @@ def tx802_startup_items():
         "SYSTEM_SETUP", "TG4", "TG4", "MINUS_ONE",  # Set Voice Bank receive to I1-I32
         "VOICE_SELECT"                              # Switch LCD to main menu
     ]
+
+def get_midi_note_name(note_number):
+    if not 0 <= note_number <= 127:
+        return "Invalid"
+    notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    octave = (note_number // 12) - 2
+    note_index = note_number % 12
+    return f"{notes[note_index]}{octave}"
+
+MIDI_NOTES = [get_midi_note_name(i) for i in range(128)]
