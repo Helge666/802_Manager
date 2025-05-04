@@ -245,17 +245,19 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
     The function handles conversion to the internal 0-based representation where necessary.
 
     Supported Parameters (Case-Insensitive Keys):
-    - VNUM<TG> (TG=1-8): Voice Number (1-128) -> Internal 0-127
+    - VNUM<TG> (TG=1-8): Voice Number (1-256) -> Internal 0-255
+    - PRESET<TG> (TG=1-8): Bank preset I01–I64, C01–C64, A01–A64 or B01–B64, converts to VNUM
     - VCHOFS<TG> (TG=1-8): Voice Channel Offset (0-7)
     - RXCH<TG> (TG=1-8): MIDI Receive Channel (1-16 or 'Omni') -> Internal 0-15, 16=OMNI
-    - DETUNE<TG> (TG=1-8): Detune (0-14, 7=Center / optionally: -7 to +7 with 0=Center)
+    - DETUNE<TG> (TG=1-8): Detune (0-14, 7=Center / optionally: -7 to +7 with 0=no detune)
     - OUTVOL<TG> (TG=1-8): Output Volume (0-99)
     - OUTCH<TG> (TG=1-8): Output Assign (0: off, 1: I/L, 2: II/R, 3: I+II / L+R)
     - NTMTL<TG> (TG=1-8): Note Limit Low (0-127, C-2 to G8)
     - NTMTH<TG> (TG=1-8): Note Limit High (0-127, C-2 to G8)
     - NOTELOW<TG> (TG=1-8): MIDI Note Low Limit specified as note name (C-2 to G8); converted internally to NTMTL<TG>
     - NOTEHIGH<TG> (TG=1-8): MIDI Note High Limit specified as note name (C-2 to G8); converted internally to NTMTH<TG>
-    - NSHFT<TG> (TG=1-8): Note Shift (0-48, 24=Center)
+    - NOTESHIFT<TG> (TG=1-8): MIDI Note Shift (0-48, 24=Center / optionally: -24 to +24 with 0=no shift)
+    - NSHFT<TG> (TG=1-8): Alias for NOTESHIFT for backwards compatibility
     - FDAMP<TG> (TG=1-8): EG Forced Damp (0: off, 1: on)
     - PAN<TG> (TG=1-8): Panning; accepts Off, I/Left, II/Right, I+II/Center; maps to OUTCH<TG>
     - LINK<TG> (TG=1-8): 0 unlinks/switches OFF the TG; self (1-8) links/switches ON the TG
@@ -287,7 +289,7 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
         param_map[f'KASG{tg}'] = (80 + (tg - 1), 0, 1, 'kasg', False)
         param_map[f'VCHOFS{tg}'] = (0 + (tg - 1), 0, 7, 'int', False)
         param_map[f'RXCH{tg}'] = (8 + (tg - 1), 1, 16, 'int', True) # User inputs 1-16 (16=OMNI)
-        param_map[f'VNUM{tg}'] = (16 + (tg - 1), 1, 128, 'int', True) # User inputs 1-128
+        param_map[f'VNUM{tg}'] = (16 + (tg - 1), 1, 256, 'int', True) # User inputs 1-255
         param_map[f'DETUNE{tg}'] = (24 + (tg - 1), 0, 14, 'int', False)
         param_map[f'OUTVOL{tg}'] = (32 + (tg - 1), 0, 99, 'int', False)
         param_map[f'OUTCH{tg}'] = (40 + (tg - 1), 0, 3, 'int', False)
@@ -394,6 +396,50 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
         if key_upper.startswith("RXCH"):
             if isinstance(value, str) and value.strip().upper() == "OMNI":
                 value = 16
+
+        # Allow for Preset instead of VNUM to match the unit's nomenclature
+        if key_upper.startswith("PRESET"):
+            # TG-Nummer extrahieren (1–8)
+            tg = key_upper[len("PRESET"):]
+            if tg.isdigit() and 1 <= int(tg) <= 8:
+                preset_str = str(value).upper()
+                # Muster: Bankbuchstabe (I/C/A/B) + zweistellige Zahl 01–64
+                import re
+                m = re.fullmatch(r'([ICAB])([0-6]\d)', preset_str)
+                if m:
+                    bank, num_str = m.groups()
+                    num = int(num_str)
+                    if 1 <= num <= 64:
+                        # Bank-Offsets definieren
+                        base = {'I': 0, 'C': 64, 'A': 128, 'B': 192}[bank]
+                        numeric = base + (num - 1)
+                        # Auf VNUM<TG> mappen und +1, damit VNUM intern korrekt (value-1) → numeric
+                        key_upper = f"VNUM{tg}"
+                        value = numeric + 1
+                    else:
+                        print(f"Warning: Number {num} for PRESET{tg} out of range (01-64). Skipping.")
+                        all_success = False
+                        continue
+                else:
+                    print(f"Warning: Invalid format '{value}' for PRESET{tg}. Expected I01–I64, C01–C64, A01–A64, B01–B64.")
+                    all_success = False
+                    continue
+            else:
+                print(f"Warning: Invalid TG '{tg}' for {key}. Skipping.")
+                all_success = False
+                continue
+
+        # Alias: NOTESHIFT<TG> as NSHFT<TG>
+        if key_upper.startswith("NOTESHIFT"):
+            # Extract TG-Nummer
+            tg = key_upper[len("NOTESHIFT"):]
+            if tg.isdigit() and 1 <= int(tg) <= 8:
+                # just rename, valuue remains
+                key_upper = f"NSHFT{tg}"
+            else:
+                print(f"Warning: Invalid TG '{tg}' for {key}. Skipping.")
+                all_success = False
+                continue
         # ―――――――――――――――――――――――――――――――――――
 
         mapped_param = None
@@ -428,6 +474,18 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
                         internal_value = user_value
                     else:
                         print(f"Warning: Value {user_value} for '{param_name}' out of allowed range (-7 to +{user_max}). Skipping.")
+                        all_success = False
+                        continue
+                # ――― Special NSHFT Handling: allow -24..+24 around center ―――
+                if param_name.startswith("NSHFT"):
+                    # relative ±24 → internal 0–48
+                    if -24 <= user_value <= 24:
+                        internal_value = user_value + 24
+                    # absolute 0–48 as before
+                    elif 0 <= user_value <= user_max:
+                        internal_value = user_value
+                    else:
+                        print(f"Warning: Value {user_value} for '{param_name}' out of allowed range (-24 to +{user_max}). Skipping.")
                         all_success = False
                         continue
                 else:
@@ -502,8 +560,8 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
         # Special handling for VNUM: encode as two bytes (MSB, LSB)
         if param_name.startswith("VNUM"):
             # Double check internal range (0-127) after adjustment
-            if not (0 <= internal_value <= 127):
-                 print(f"Internal Error: Adjusted VNUM {internal_value} out of device range 0-127. Original value: {value}. Skipping.")
+            if not (0 <= internal_value <= 255):
+                 print(f"Internal Error: Adjusted VNUM {internal_value} out of device range 0-255. Original value: {value}. Skipping.")
                  all_success = False
                  continue
             msb = (internal_value >> 7) & 0x7F
