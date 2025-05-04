@@ -50,7 +50,7 @@ def get_midi_note_name(note_number):
 
 MIDI_NOTES = [get_midi_note_name(i) for i in range(128)]
 ON_OFF_CHOICES = ["Off", "On"]
-RECEIVE_CHOICES = [str(i) for i in range(1, 17)] + ["Omni"]
+RECEIVE_CHOICES = [str(i) for i in range(1, 16)] + ["Omni"]
 OUTPUT_CHOICES = ["L", "R", "L&R"]
 
 def note_name_to_midi(note_name: str) -> int:
@@ -75,21 +75,35 @@ def output_assign_to_code(val: str) -> int:
 def on_off_to_bool(val: str) -> int:
     return 1 if val == "On" else 0
 
-def get_ui_default(tg, param):
+
+def get_ui_default(tg: int, param: str):
     val = state.tg_states[tg][param]
-    if param == "LINK":
-        return state.tg_states[tg]["LINK"]
-    elif param == "RXCH":
-        return str(val)
-    elif param == "NTMTL" or param == "NTMTH":
-        return get_midi_note_name(val)
+    if param == "RXCH":
+        return str(val)  # User-facing MIDI channel (1–16)
+    elif param in ("NTMTL", "NTMTH"):
+        return get_midi_note_name(val)  # Convert 0–127 to "C-2".."G8"
+    elif param == "DETUNE":
+        return val  # 0–14
+    elif param == "NSHFT":
+        return val  # 0–48
+    elif param == "OUTVOL":
+        return val  # 0–99
     elif param == "OUTCH":
-        return {0: "L", 1: "R", 2: "L&R"}.get(val, "L")
+        return {0: "L", 1: "R", 2: "L&R"}.get(val, "L")  # Safe fallback
     elif param == "FDAMP":
         return "On" if val else "Off"
     elif param == "VNUM":
-        return state.PATCH_BANK[val - 1][0] if val > 0 else "Init"
-    return val
+        # VNUM is 1-based in state. VNUM = 0 means "Init"
+        if val > 0 and val <= len(state.PATCH_BANK):
+            return state.PATCH_BANK[val - 1][0]  # Return the patch name
+        else:
+            return "Init"
+    elif param == "LINK":
+        # Only TG1 is fixed to On (LINK=0); others are "On" if value == tg
+        return "On" if val == tg else "Off"
+    else:
+        return val  # Fallback for unknowns (safe default)
+
 
 # --- Gradio Tab Setup Functions ---
 def setup_tab():
