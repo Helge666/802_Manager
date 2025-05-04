@@ -50,8 +50,24 @@ def get_midi_note_name(note_number):
 
 MIDI_NOTES = [get_midi_note_name(i) for i in range(128)]
 ON_OFF_CHOICES = ["Off", "On"]
-RECEIVE_CHOICES = [str(i) for i in range(1, 16)] + ["Omni"]
-OUTPUT_CHOICES = ["L", "R", "L&R"]
+RECEIVE_CHOICES = [str(i) for i in range(1, 17)] + ["Omni"]
+PAN_CHOICES = ["Off", "Left", "Right", "Center"]
+FDAMP_CHOICES = ["Off", "On"]
+TG_CHOICES = ["Off", "On"]
+
+# Note choices from C-2 up to G8
+_NOTE_NAME_BASE = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+NOTE_CHOICES = [
+    f"{note}{octave}"
+    for octave in range(-2, 9)
+    for note in _NOTE_NAME_BASE
+    if not (octave == 8 and _NOTE_NAME_BASE.index(note) > 7)
+]
+
+# Output volume choices 0–99 (slider)
+# We'll use a slider rather than raw numbers for better UX
+
+
 
 def note_name_to_midi(note_name: str) -> int:
     try:
@@ -74,36 +90,6 @@ def output_assign_to_code(val: str) -> int:
 
 def on_off_to_bool(val: str) -> int:
     return 1 if val == "On" else 0
-
-
-def get_ui_default(tg: int, param: str):
-    val = state.tg_states[tg][param]
-    if param == "RXCH":
-        return str(val)  # User-facing MIDI channel (1–16)
-    elif param in ("NTMTL", "NTMTH"):
-        return get_midi_note_name(val)  # Convert 0–127 to "C-2".."G8"
-    elif param == "DETUNE":
-        return val  # 0–14
-    elif param == "NSHFT":
-        return val  # 0–48
-    elif param == "OUTVOL":
-        return val  # 0–99
-    elif param == "OUTCH":
-        return {0: "L", 1: "R", 2: "L&R"}.get(val, "L")  # Safe fallback
-    elif param == "FDAMP":
-        return "On" if val else "Off"
-    elif param == "VNUM":
-        # VNUM is 1-based in state. VNUM = 0 means "Init"
-        if val > 0 and val <= len(state.PATCH_BANK):
-            return state.PATCH_BANK[val - 1][0]  # Return the patch name
-        else:
-            return "Init"
-    elif param == "LINK":
-        # Only TG1 is fixed to On (LINK=0); others are "On" if value == tg
-        return "On" if val == tg else "Off"
-    else:
-        return val  # Fallback for unknowns (safe default)
-
 
 # --- Gradio Tab Setup Functions ---
 def setup_tab():
@@ -156,72 +142,153 @@ def setup_tab():
                                 gr.Textbox(value=str(i + 1), show_label=False, interactive=False, container=False)
 
                             elif col_name == "Link":
-                                default_val = state.tg_states[i + 1]["LINK"]  # Get current string value: "On" or "Off"
-                                if i == 0:
-                                    # TG1 is always on and not editable
-                                    elem = gr.Dropdown(
-                                        choices=["On", "Off"],
-                                        value="On",
-                                        show_label=False,
-                                        interactive=False,
-                                        container=False
-                                    )
-                                else:
-                                    elem = gr.Dropdown(
-                                        choices=["On", "Off"],
-                                        value=default_val,  # ← Use actual stored value
-                                        show_label=False,
-                                        interactive=True,
-                                        container=False
-                                    )
-
+                                # TG On/Off dropdown
+                                default_val = state.tg_states[i + 1]["TG"]
+                                elem = gr.Dropdown(
+                                    choices=TG_CHOICES,
+                                    value=default_val,
+                                    show_label=False,
+                                    interactive=True,
+                                    container=False
+                                )
                                 all_interactive_inputs.append(elem)
 
                             elif col_name == "Voice":
-                                elem = gr.Dropdown(choices=state.PATCH_BANK, value=state.PATCH_BANK[i % len(state.PATCH_BANK)][1], show_label=False, interactive=True, container=False)
-                                voice_dropdowns.append(elem)
+                                # Patch dropdown: display the patch name, return device code "I01"–"I32"
+                                # Build choices as (label, value) pairs
+                                preset_choices = [
+                                    (patch_name, f"I{slot:02d}")
+                                    for patch_name, slot in state.PATCH_BANK
+                                ]
+                                # Default is whatever PRESET the TG currently has
+                                default_val = state.tg_states[i + 1]["PRESET"]
+                                elem = gr.Dropdown(
+                                    choices=preset_choices,
+                                    value=default_val,
+                                    show_label=False,
+                                    interactive=True,
+                                    container=False
+                                )
                                 all_interactive_inputs.append(elem)
+
                             elif col_name == "Receive":
-                                elem = gr.Dropdown(choices=RECEIVE_CHOICES, value="1", show_label=False, interactive=True, container=False)
+                                # MIDI receive channel dropdown: 1–16 or Omni
+                                default_val = state.tg_states[i + 1]["RXCH"]
+                                elem = gr.Dropdown(
+                                    choices=RECEIVE_CHOICES,
+                                    value=str(default_val),
+                                    show_label=False,
+                                    interactive=True,
+                                    container=False
+                                )
                                 all_interactive_inputs.append(elem)
+
                             elif col_name == "Low":
-                                elem = gr.Dropdown(choices=MIDI_NOTES, value="C-2", show_label=False, interactive=True, container=False)
+                                # Lower split point dropdown (note names)
+                                default_val = state.tg_states[i + 1]["NOTELOW"]
+                                elem = gr.Dropdown(
+                                    choices=NOTE_CHOICES,
+                                    value=default_val,
+                                    show_label=False,
+                                    interactive=True,
+                                    container=False
+                                )
                                 all_interactive_inputs.append(elem)
+
                             elif col_name == "High":
-                                elem = gr.Dropdown(choices=MIDI_NOTES, value="G8", show_label=False, interactive=True, container=False)
+                                # Upper split point dropdown (note names)
+                                default_val = state.tg_states[i + 1]["NOTEHIGH"]
+                                elem = gr.Dropdown(
+                                    choices=NOTE_CHOICES,
+                                    value=default_val,
+                                    show_label=False,
+                                    interactive=True,
+                                    container=False
+                                )
                                 all_interactive_inputs.append(elem)
+
                             elif col_name == "Detune":
-                                elem = gr.Number(minimum=0, maximum=15, step=1, value=7, show_label=False, interactive=True, container=False)
+                                # Detune offset –7 to +7, dynamic default from state
+                                default_val = int(state.tg_states[i + 1]["DETUNE"])
+                                elem = gr.Number(
+                                    minimum=-7,
+                                    maximum=7,
+                                    step=1,
+                                    value=default_val,
+                                    show_label=False,
+                                    interactive=True,
+                                    container=False
+                                )
                                 all_interactive_inputs.append(elem)
+
                             elif col_name == "Shift":
-                                elem = gr.Number(minimum=0, maximum=128, step=1, value=0, show_label=False, interactive=True, container=False)
+                                # Note shift –24 to +24, dynamic default from state
+                                default_val = int(state.tg_states[i + 1]["NOTESHIFT"])
+                                elem = gr.Number(
+                                    minimum=-24,
+                                    maximum=24,
+                                    step=1,
+                                    value=default_val,
+                                    show_label=False,
+                                    interactive=True,
+                                    container=False
+                                )
                                 all_interactive_inputs.append(elem)
+
                             elif col_name == "Volume":
-                                elem = gr.Number(minimum=0, maximum=100, step=1, value=75, show_label=False, interactive=True, container=False)
+                                # Output volume numeric input 0–99
+                                default_val = int(state.tg_states[i + 1]["OUTVOL"])
+                                elem = gr.Number(
+                                    minimum=0,
+                                    maximum=99,
+                                    step=1,
+                                    value=default_val,
+                                    show_label=False,
+                                    interactive=True,
+                                    container=False
+                                )
                                 all_interactive_inputs.append(elem)
+
                             elif col_name == "Output":
-                                elem = gr.Dropdown(choices=OUTPUT_CHOICES, value="L&R", show_label=False, interactive=True, container=False)
+                                # Panning dropdown with human-friendly labels
+                                default_val = state.tg_states[i + 1]["PAN"]
+                                elem = gr.Dropdown(
+                                    choices=PAN_CHOICES,
+                                    value=default_val,
+                                    show_label=False,
+                                    interactive=True,
+                                    container=False
+                                )
                                 all_interactive_inputs.append(elem)
+
                             elif col_name == "Damp":
-                                elem = gr.Dropdown(choices=ON_OFF_CHOICES, value="Off", show_label=False, interactive=True, container=False)
+                                # Forced Damp dropdown with human-friendly labels
+                                default_val = state.tg_states[i + 1]["FDAMP"]
+                                elem = gr.Dropdown(
+                                    choices=FDAMP_CHOICES,
+                                    value=default_val,
+                                    show_label=False,
+                                    interactive=True,
+                                    container=False
+                                )
                                 all_interactive_inputs.append(elem)
 
     with gr.Row():
         output_display = gr.Textbox(label="Action", interactive=False, scale=5)
         save_status_display = gr.Textbox(label="Status", value="✅ Config Saved", visible=True, scale=1)
 
-
+    # List of user‐friendly, human‐readable parameter names per Tone Generator
     param_names_per_tg = [
-        "LINK",
-        "VNUM",
-        "RXCH",
-        "NTMTL",
-        "NTMTH",
-        "DETUNE",
-        "NSHFT",
-        "OUTVOL",
-        "OUTCH",
-        "FDAMP"
+        "TG",           # Tone Generator On/Off
+        "PRESET",       # Device memory location (I01–I32 currently)
+        "RXCH",         # MIDI receive channel
+        "NOTELOW",      # Lower split point
+        "NOTEHIGH",     # Upper split point
+        "DETUNE",       # Detune offset (–7 to +7)
+        "NOTESHIFT",    # Note shift (–24 to +24)
+        "OUTVOL",       # Output volume (0–99)
+        "PAN",          # Panning: Off | I/Left | II/Right | I+II/Center
+        "FDAMP"         # EG Forced Damp On/Off
     ]
 
     def handle_single_change(changed_value, index, current_patch_bank):
@@ -243,56 +310,9 @@ def setup_tab():
 
         key = f"{param_name}{tg}"  # Construct the full parameter key (e.g., "VNUM1", "RXCH1") [cite: 74]
 
-        internal_val = None
-        user_facing_value = changed_value  # Store the value from the UI for reporting
-
-        # --- Translate UI value to internal TX802 value ---
-        if param_name == "VNUM":
-            # Find the 1-based index of the selected patch name in the bank
-            try:
-                # current_patch_bank is the list of (id, name) tuples from PATCH_BANK state
-                patch_index_0_based = [name for _, name in current_patch_bank].index(changed_value)
-                internal_val = patch_index_0_based + 1  # VNUM is 1-based (1-32 or 1-128 depending on context, here 1-32 likely intended for bank slots) [cite: 119, 123]
-            except ValueError:
-                print(f"Warning: Patch '{changed_value}' not found in current bank. Cannot send VNUM update.")
-                return f"Error: Patch '{changed_value}' not found in bank."
-
-        elif param_name == "LINK":
-            if changed_value == "On":
-                internal_val = tg  # ✅ Activate TG (unlink)
-                state.update_tg_state(tg, "LINK", "On")
-            else:
-                internal_val = 1  # ✅ Deactivate TG (link)
-                state.update_tg_state(tg, "LINK", "Off")
-
-        elif param_name == "RXCH":
-            internal_val = midi_channel_to_internal(changed_value)  # Convert "Off", "1"-"16", "Omni" [cite: 52]
-        elif param_name in ("NTMTL", "NTMTH"):
-            internal_val = note_name_to_midi(changed_value)  # Convert "C-2".."G8" to 0-127
-        elif param_name == "OUTCH":
-            internal_val = output_assign_to_code(changed_value)  # Convert "Off", "L", "R", "L&R" to 0-3 [cite: 55, 75]
-        elif param_name == "FDAMP":
-            internal_val = on_off_to_bool(changed_value)  # Convert "On"/"Off" to 1/0 [cite: 56]
-        elif param_name == "DETUNE":
-            # Ensure value is within 0-14 range expected by edit_performance [cite: 119, 123]
-            internal_val = int(changed_value)
-            if not (0 <= internal_val <= 14):
-                print(f"Warning: Detune value {internal_val} out of range (0-14). Clamping.")
-                internal_val = max(0, min(internal_val, 14))
-        elif param_name == "NSHFT":
-            # Ensure value is within 0-48 range expected by edit_performance [cite: 120, 124]
-            internal_val = int(changed_value)
-            if not (0 <= internal_val <= 48):
-                print(f"Warning: Note Shift value {internal_val} out of range (0-48). Clamping.")
-                internal_val = max(0, min(internal_val, 48))
-        elif param_name == "OUTVOL":
-            # Ensure value is within 0-99 range expected by edit_performance [cite: 119, 124]
-            internal_val = int(changed_value)
-            if not (0 <= internal_val <= 99):
-                print(f"Warning: Volume value {internal_val} out of range (0-99). Clamping.")
-                internal_val = max(0, min(internal_val, 99))
-        else:
-            internal_val = changed_value  # Use value directly (may need conversion for On/Off to 0/1 if not handled elsewhere)
+        # --- Directly forward the user-facing value to edit_performance ---
+        internal_val = changed_value
+        user_facing_value = changed_value
 
         if internal_val is not None:
             # --- Send the SysEx message first ---
@@ -302,24 +322,22 @@ def setup_tab():
                 return status_message
 
             try:
-                print(f"[DEBUG] Calling edit_performance with: {key} = {internal_val} (type={type(internal_val)})")
 
                 print(f"[CHECKPOINT] Will send: {key=} {internal_val=}, before config save.")
-                print(f"[CHECKPOINT] Current tg_states[{tg}]['LINK'] = {state.tg_states[tg]['LINK']} ({type(state.tg_states[tg]['LINK'])})")
 
-                success = edit_performance(port=state.midi_output, device_id=1, delay_after=0.02, play_notes = False, **{key: internal_val})
+                print(f"[DEBUG] Calling edit_performance with: {key} = {internal_val} (type={type(internal_val)})")
 
-                print(f"[AFTER] tg_states[{tg}]['LINK'] = {state.tg_states[tg]['LINK']} ({type(state.tg_states[tg]['LINK'])})")
+                success = edit_performance(
+                    port=state.midi_output,
+                    device_id=1,
+                    delay_after=0.02,
+                    play_notes=False,
+                    **{key: internal_val}
+                )
 
                 if success:
                     status_message = lcd_display()
-                    # --- Update tg_states ---
-                    if param_name == "VNUM":
-                        state.handle_tg_voice_change(tg, internal_val)
-                    elif param_name == "OUTCH":
-                        state.handle_tg_output_change(tg, internal_val)
-                    elif param_name != "LINK":  # 👈 block LINK from being re-written
-                        state.update_tg_state(tg, param_name, internal_val)
+                    state.update_tg_state(tg, param_name, internal_val)
 
                     # --- Schedule config save ---
                     save_status = schedule_debounced_config_save(state.tg_states)
@@ -343,8 +361,21 @@ def setup_tab():
         )
 
 def refresh_tab():
-    # Update all voice dropdowns with current PATCH_BANK
-    return [gr.update(choices=state.PATCH_BANK, value=state.PATCH_BANK[i % len(state.PATCH_BANK)][1]) for i in range(8)]
+    # Rebuild the (label, value) pairs exactly as in setup_tab
+    preset_choices = [
+        (patch_name, f"I{slot:02d}")
+        for patch_name, slot in state.PATCH_BANK
+    ]
+    updates = []
+    # One gr.update per voice_dropdown, matching get_refresh_outputs()
+    for i in range(len(voice_dropdowns)):
+        default_preset = state.tg_states[i + 1]["PRESET"]
+        updates.append(
+            gr.update(choices=preset_choices, value=default_preset)
+        )
+    return updates
+
+
 
 def get_refresh_outputs():
     """Returns the components that need to be refreshed"""
@@ -358,7 +389,7 @@ def lcd_display():
 
     # First pass: collect all link states
     for tg, tg_settings in state.tg_states.items():
-        link_state = tg_settings['LINK']
+        link_state = tg_settings['TG']
         all_link_states[int(tg)] = link_state
 
     # Create the single visual representation

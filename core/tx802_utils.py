@@ -258,7 +258,7 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
     - NOTEHIGH<TG> (TG=1-8): MIDI Note High Limit specified as note name (C-2 to G8); converted internally to NTMTH<TG>
     - NOTESHIFT<TG> (TG=1-8): MIDI Note Shift (0-48, 24=Center / optionally: -24 to +24 with 0=no shift)
     - NSHFT<TG> (TG=1-8): Alias for NOTESHIFT for backwards compatibility
-    - FDAMP<TG> (TG=1-8): EG Forced Damp (0: off, 1: on)
+    - FDAMP<TG> (TG=1-8): EG Forced Damp (0: off, 1: on / optionally: on, off)
     - PAN<TG> (TG=1-8): Panning; accepts Off, I/Left, II/Right, I+II/Center; maps to OUTCH<TG>
     - LINK<TG> (TG=1-8): 0 unlinks/switches OFF the TG; self (1-8) links/switches ON the TG
     - TG<TG> (TG=1-8): Tone Generator On/Off; accepts On → LINK<TG>=<TG>, Off → LINK<TG>=0
@@ -308,6 +308,29 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
 
         # Optional Parameter Mappings
         # ―――――――――――――――――――――――――――――――――――
+        # ――――― Special DETUNE<TG>: only ±7 around center, maps to 0–14 ―――
+        if key_upper.startswith("DETUNE"):
+            tg = key_upper[len("DETUNE"):]
+            if tg.isdigit() and 1 <= int(tg) <= 8:
+                try:
+                    user_val = int(value)
+                except ValueError:
+                    print(f"Warning: Could not interpret '{value}' for DETUNE{tg}. Skipping.")
+                    all_success = False
+                    continue
+
+                if -7 <= user_val <= 7:
+                    # center=0 → internal 7, so +7
+                    value = user_val + 7
+                else:
+                    print(f"Warning: Value {user_val} for 'DETUNE{tg}' out of allowed range (-7 to +7). Skipping.")
+                    all_success = False
+                    continue
+            else:
+                print(f"Warning: Invalid TG '{tg}' for {key}. Skipping.")
+                all_success = False
+                continue
+
         if key_upper.startswith("NOTELOW"):
             # TG extrahieren (Zahl 1–8)
             tg = key_upper[len("NOTELOW"):]
@@ -440,6 +463,15 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
                 print(f"Warning: Invalid TG '{tg}' for {key}. Skipping.")
                 all_success = False
                 continue
+
+        # Special FDAMP<TG>: accept "On"/"Off" as 1/0
+        if key_upper.startswith("FDAMP"):
+            val_str = str(value).strip().upper()
+            if val_str == "ON":
+                value = 1
+            elif val_str == "OFF":
+                value = 0
+
         # ―――――――――――――――――――――――――――――――――――
 
         mapped_param = None
@@ -464,18 +496,7 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
         try:
             if param_type == 'int':
                 user_value = int(value)
-                # ――― Special DETUNE Handling: allow -7..+7 around center ―――
-                if param_name.startswith("DETUNE"):
-                    # relative ±7 → internal 0–14
-                    if -7 <= user_value <= 7:
-                        internal_value = user_value + 7
-                    # absolute 0–14 as before
-                    elif 0 <= user_value <= user_max:
-                        internal_value = user_value
-                    else:
-                        print(f"Warning: Value {user_value} for '{param_name}' out of allowed range (-7 to +{user_max}). Skipping.")
-                        all_success = False
-                        continue
+
                 # ――― Special NSHFT Handling: allow -24..+24 around center ―――
                 if param_name.startswith("NSHFT"):
                     # relative ±24 → internal 0–48

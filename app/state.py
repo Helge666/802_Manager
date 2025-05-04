@@ -7,8 +7,8 @@ This module makes shared states available globally for all
 tabs, even when they change later on due to user interaction
 '''
 
-# PATCH_BANK = ["Init"] * 32
-PATCH_BANK = [("Init", i) for i in range(1, 33)]
+# PATCH_BANK = [("Init", i) for i in range(1, 33)]
+PATCH_BANK = [(f"[I{i:02d}] Init", i) for i in range(1, 33)]
 
 midi_input = None
 midi_output = None
@@ -138,16 +138,16 @@ def update_patch_bank(slot, patch_name):
 
 # --- Define a default TG state as a reusable constant ---
 DEFAULT_TG_STATE = {
-    "LINK": "On",
-    "VNUM": 0,
-    "RXCH": 1,       # User-facing default channel
-    "NTMTL": 0,
-    "NTMTH": 127,
-    "DETUNE": 7,
-    "NSHFT": 0,
-    "OUTVOL": 0,
-    "OUTCH": 0,
-    "FDAMP": 0
+    "TG": "Off",        # Tone Generator off (unlinked) – all TGs default to Off
+    "PRESET": "I01",    # Device memory location I01–I32 (currently)
+    "RXCH": "1",        # MIDI receive channel 1–16
+    "NOTELOW": "C-2",   # Lower split point
+    "NOTEHIGH": "G8",   # Upper split point
+    "DETUNE": "0",      # Detune offset –7…+7, 0 = Center
+    "NOTESHIFT": "0",   # Note shift –24…+24, 0 = Center
+    "OUTVOL": "75",     # Output volume 0–99
+    "PAN": "Center",    # Panning: Off | I/Left | II/Right | I+II/Center
+    "FDAMP": "Off"      # EG Forced Damp On/Off
 }
 
 # --- Initialize TG states using that default ---
@@ -160,11 +160,3 @@ def init_tx802_performance_state():
 def update_tg_state(tg, key, value):
     if tg in tg_states and key in tg_states[tg]:
         tg_states[tg][key] = value
-
-def handle_tg_voice_change(tg, vnum):
-    update_tg_state(tg, "VNUM", vnum)
-    # Optional: also auto-set OUTCH if you want (e.g., L&R by default)
-    #  update_tg_state(tg, "OUTCH", 3)
-
-def handle_tg_output_change(tg, output_code):
-    update_tg_state(tg, "OUTCH", output_code)

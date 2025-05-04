@@ -140,16 +140,18 @@ def setup_tab():
             for tg_str, params in config["performance_params"].items():
                 tg = int(tg_str)
                 for param_name, value in params.items():
-                    if param_name == "LINK":
-                        if value not in ("On", "Off"):
-                            raise ValueError(f"Invalid LINK value in config for TG{tg}: {value!r}")
-                        # Convert from "On"/"Off" to the internal TX802 value
-                        # internal_val = 0 if value == "On" else tg
-                        internal_val = tg if value == "On" else 1
-                        state_manager.update_tg_state(tg, param_name, value)  # store string
-                        button_commands[f"LINK{tg}"] = internal_val  # send int
-                    else:
-                        state_manager.update_tg_state(tg, param_name, value)
+                    # Only accept our human-friendly keys
+                    if param_name not in (
+                            "TG", "PRESET", "RXCH", "NOTELOW", "NOTEHIGH",
+                            "DETUNE", "NOTESHIFT", "OUTVOL", "PAN", "FDAMP"
+                    ):
+                        raise ValueError(
+                            f"Invalid parameter name {param_name!r} in config for TG{tg}"
+                        )
+                    # Store the user-facing value directly
+                    state_manager.update_tg_state(tg, param_name, value)
+                    # Queue up for the initial edit_performance call
+                    button_commands[f"{param_name}{tg}"] = value
 
             # Build a human-readable log string
             readable_sequence = []
