@@ -15,5 +15,6 @@
     F0 43 10 1A 07 07 F7    - Unlinks/Switches on TG8 
     F0 43 10 1A 07 00 F7    - Links/Switches off TG8
 
-    Caveat:
-    TG1 values are accepted, but have no function, since TG1 is the anchor TG and can't be linked.
+    Caveats:
+    - TG1 values are accepted, but have no function, since TG1 is the anchor TG and can't be linked.
+    - Setting a VNUM (a Patch) for a linked TG will also unlink the TG.

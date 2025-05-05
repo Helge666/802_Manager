@@ -264,7 +264,7 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
     - TG<TG> (TG=1-8): Tone Generator On/Off; accepts On → LINK<TG>=<TG>, Off → LINK<TG>=0
     - PNAM<Index> (Index=1-20): Performance Name Character (ASCII char or code 0-127)
     """
-    print(f"\n--- Editing Performance Parameters (Device ID: {device_id}) ---")
+    # print(f"\n--- Editing Performance Parameters (Device ID: {device_id}) ---")
 
     # Ensure output port is open
     # if not port or port.closed: # Use this with a real mido port
@@ -306,9 +306,10 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
     for key, value in kwargs.items():
         key_upper = key.upper()
 
-        # Optional Parameter Mappings
+        # Special Parameter Mappings
         # ―――――――――――――――――――――――――――――――――――
-        # ――――― Special DETUNE<TG>: only ±7 around center, maps to 0–14 ―――
+
+        # Special DETUNE<TG>: only ±7 around center, maps to 0–14
         if key_upper.startswith("DETUNE"):
             tg = key_upper[len("DETUNE"):]
             if tg.isdigit() and 1 <= int(tg) <= 8:
@@ -414,6 +415,8 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
                 print(f"Warning: Invalid TG '{tg}' for {key}. Skipping.")
                 all_success = False
                 continue
+
+        # print(f"=====> ATTEMPTING TO SEND {key_upper}={value}")
 
         # Allow "Omni" string for RXCH<TG> → internal 16
         if key_upper.startswith("RXCH"):
@@ -604,7 +607,6 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
                 param_num,
                 internal_value # Use the processed and potentially adjusted value
             ]
-
         # --- Send Message ---
         if not send_sysex_message(port, sysex_data, description, delay_after=delay_after):
             print(f"Error: Failed to send parameter '{param_name}'.")
@@ -613,7 +615,7 @@ def edit_performance(port, device_id=1, delay_after=0.05, play_notes=False, **kw
 
     if play_notes: play_test_notes(port)
 
-    print("--- Performance Parameter Edit Finished ---")
+    # print("--- Performance Parameter Edit Finished ---")
     return all_success
 
 def send_parameter_edits(edits_str, device_id=1, output_port=None, delay=0.05):

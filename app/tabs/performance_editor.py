@@ -306,7 +306,7 @@ def setup_tab():
 
         param_name = param_names_per_tg[param_pos]  # Get the base parameter name (e.g., "VNUM", "RXCH") [cite: 74]
 
-        print(f"[DEBUG] index={index}, tg={tg}, param_pos={param_pos}, param_name={param_name}, changed_value={changed_value}")
+        # print(f"[DEBUG] index={index}, tg={tg}, param_pos={param_pos}, param_name={param_name}, changed_value={changed_value}")
 
         key = f"{param_name}{tg}"  # Construct the full parameter key (e.g., "VNUM1", "RXCH1") [cite: 74]
 
@@ -323,9 +323,9 @@ def setup_tab():
 
             try:
 
-                print(f"[CHECKPOINT] Will send: {key=} {internal_val=}, before config save.")
+                # print(f"[CHECKPOINT] Will send: {key=} {internal_val=}, before config save.")
 
-                print(f"[DEBUG] Calling edit_performance with: {key} = {internal_val} (type={type(internal_val)})")
+                # print(f"[DEBUG] Calling edit_performance with: {key} = {internal_val} (type={type(internal_val)})")
 
                 success = edit_performance(
                     port=state.midi_output,

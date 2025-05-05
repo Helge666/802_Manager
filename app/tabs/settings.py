@@ -126,49 +126,27 @@ def setup_tab():
             verbose=True
         )
 
-        # Initialize software state to match the known hardware state
-        state_manager.init_tx802_performance_state()
-
         # Create a dictionary of button commands for process_button_sequence
         button_commands = {}
 
         # Now check if we have saved performance parameters
-        # When loading saved parameters
-        # After loading values into the state
         if "performance_params" in config:
             # Load the saved parameters into our state
             for tg_str, params in config["performance_params"].items():
-                tg = int(tg_str)
-                for param_name, value in params.items():
-                    # Only accept our human-friendly keys
-                    if param_name not in (
-                            "TG", "PRESET", "RXCH", "NOTELOW", "NOTEHIGH",
-                            "DETUNE", "NOTESHIFT", "OUTVOL", "PAN", "FDAMP"
-                    ):
-                        raise ValueError(
-                            f"Invalid parameter name {param_name!r} in config for TG{tg}"
-                        )
-                    # Store the user-facing value directly
-                    state_manager.update_tg_state(tg, param_name, value)
-                    # Queue up for the initial edit_performance call
-                    button_commands[f"{param_name}{tg}"] = value
 
-            # Build a human-readable log string
-            readable_sequence = []
+                # Only when On to prevent VNUM from flipping Off → On
+                if params['TG'] == "On":
+                    tg = int(tg_str)
+                    tg_line = [f"TG{tg}:"]
+                    readable_sequence = []
 
-            for tg in range(1, 9):
-                tg_line = [f"TG{tg}:"]
-                for param_name, value in state_manager.tg_states[tg].items():
-                    if param_name == "LINK":
-                        continue  # Already handled above — don’t overwrite
-                    key = f"{param_name}{tg}"
-                    button_commands[key] = value
-                    tg_line.append(f"{param_name}{tg}={value}")
+                    for param_name, value in params.items():
+                        tg_line.append(f"{param_name}{tg}={value}")
+                        state_manager.update_tg_state(tg, param_name, value)
+                        button_commands[f"{param_name}{tg}"] = value
 
-                readable_sequence.append(" → ".join(tg_line))
-
-            # Print the sequence
-            print("\n".join(readable_sequence))
+                    readable_sequence.append(" → ".join(tg_line))
+                    print("\n".join(readable_sequence))
 
             # Call the performance editor with unpacked parameters
             edit_performance(

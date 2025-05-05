@@ -136,7 +136,8 @@ def update_patch_bank(slot, patch_name):
     #  print(f"Updated PATCH_BANK slot {slot} with {patch_name}")
 
 
-# --- Define a default TG state as a reusable constant ---
+# Define a default TG state as a reusable constant ---
+# These values are set by the unit as Init Preset
 DEFAULT_TG_STATE = {
     "TG": "Off",        # Tone Generator off (unlinked) – all TGs default to Off
     "PRESET": "I01",    # Device memory location I01–I32 (currently)
@@ -145,7 +146,7 @@ DEFAULT_TG_STATE = {
     "NOTEHIGH": "G8",   # Upper split point
     "DETUNE": "0",      # Detune offset –7…+7, 0 = Center
     "NOTESHIFT": "0",   # Note shift –24…+24, 0 = Center
-    "OUTVOL": "75",     # Output volume 0–99
+    "OUTVOL": "90",     # Output volume 0–99
     "PAN": "Center",    # Panning: Off | I/Left | II/Right | I+II/Center
     "FDAMP": "Off"      # EG Forced Damp On/Off
 }
@@ -153,9 +154,6 @@ DEFAULT_TG_STATE = {
 # --- Initialize TG states using that default ---
 tg_states = {tg: DEFAULT_TG_STATE.copy() for tg in range(1, 9)}
 
-def init_tx802_performance_state():
-    for tg in range(1, 9):
-        tg_states[tg] = DEFAULT_TG_STATE.copy()
 
 def update_tg_state(tg, key, value):
     if tg in tg_states and key in tg_states[tg]:
