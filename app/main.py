@@ -45,9 +45,9 @@ with gr.Blocks() as tx802_manager:
                             refresh_outputs = []
 
                         tab.select(fn=tab_module.refresh_tab, inputs=[], outputs=refresh_outputs)
-                        print(f"Added refresh trigger for tab: {tab_title}")
+                        # print(f"Added refresh trigger for tab: {tab_title}")
 
-                    print(f"Successfully loaded UI for tab: {tab_title} (from {module_name})")
+                    # print(f"Successfully loaded UI for tab: {tab_title} (from {module_name})")
                 else:
                     module_filename = f"{module_name.split('.')[-1]}.py"
                     gr.Markdown(
@@ -81,7 +81,6 @@ with gr.Blocks() as tx802_manager:
 
 # --- Launch the Application ---
 if __name__ == "__main__":
-    print("Launching Gradio App...")
     # Ensure the working directory is correct if running from a different location
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     tx802_manager.launch()

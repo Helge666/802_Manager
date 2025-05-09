@@ -65,9 +65,6 @@ NOTE_CHOICES = [
     if not (octave == 8 and _NOTE_NAME_BASE.index(note) > 7)
 ]
 
-# Output volume choices 0–99 (slider)
-# We'll use a slider rather than raw numbers for better UX
-
 
 
 def note_name_to_midi(note_name: str) -> int:
@@ -94,7 +91,6 @@ def on_off_to_bool(val: str) -> int:
 
 # --- Gradio Tab Setup Functions ---
 def setup_tab():
-    print("########## performance_editor.py setup_tab() triggered ##########")
     global voice_dropdowns, components_to_refresh
     voice_dropdowns = []
 
@@ -311,8 +307,6 @@ def setup_tab():
 
         param_name = param_names_per_tg[param_pos]  # Get the base parameter name (e.g., "VNUM", "RXCH") [cite: 74]
 
-        # print(f"[DEBUG] index={index}, tg={tg}, param_pos={param_pos}, param_name={param_name}, changed_value={changed_value}")
-
         key = f"{param_name}{tg}"  # Construct the full parameter key (e.g., "VNUM1", "RXCH1") [cite: 74]
 
         # --- Directly forward the user-facing value to edit_performance ---
@@ -327,11 +321,6 @@ def setup_tab():
                 return status_message
 
             try:
-
-                # print(f"[CHECKPOINT] Will send: {key=} {internal_val=}, before config save.")
-
-                # print(f"[DEBUG] Calling edit_performance with: {key} = {internal_val} (type={type(internal_val)})")
-
                 success = edit_performance(
                     port=state.midi_output,
                     device_id=1,
@@ -366,18 +355,8 @@ def setup_tab():
         )
 
 def refresh_tab():
-    print("########## refresh performance_editor ##########")
     import app.state as state
     from core.tx802_utils import edit_performance
-
-    print(f"DEBUG - Before check: current={state.current_tab}, previous={state.previous_tab}")
-
-    # Check if we're specifically returning from patch_browser
-    if state.previous_tab == "Patch Browser":
-        print("PERFORMANCE EDITOR - Returning from Patch Browser, restoring performance state:")
-        # ...
-    else:
-        print(f"PERFORMANCE EDITOR - Normal refresh (not from Patch Browser), previous tab was: '{state.previous_tab}'")
 
     # Set the current tab
     state.set_current_tab("Perform Edit")
@@ -398,7 +377,7 @@ def refresh_tab():
 
     # Check if we're specifically returning from patch_browser
     if state.previous_tab == "Patch Browser":
-        print("PERFORMANCE EDITOR - Returning from Patch Browser, restoring performance state:")
+        # print("PERFORMANCE EDITOR - Returning from Patch Browser, restoring performance state:")
         button_commands = {}
 
         # Only proceed if we have a valid MIDI output
@@ -412,11 +391,11 @@ def refresh_tab():
         for tg_num in range(2, 9):
             current_state = state.tg_states[tg_num]["TG"]
             if current_state == "On":
-                print(f"  • Turning ON: TG{tg_num}")
+                # print(f"  • Turning ON: TG{tg_num}")
                 button_commands[f"TG{tg_num}"] = "On"
 
         # 2. For TG1, restore parameters from saved state
-        print("  • Restoring TG1 parameters to saved values:")
+        # print("  • Restoring TG1 parameters to saved values:")
         for param, saved_value in state.tg_states[1].items():
             # Skip TG (always ON) and PRESET (already handled by UI)
             if param in ["TG", "PRESET"]:
@@ -424,7 +403,7 @@ def refresh_tab():
 
             default_value = state.DEFAULT_TG_STATE.get(param)
             if saved_value != default_value:
-                print(f"    - TG1 {param}: {default_value} → {saved_value}")
+                # print(f"    - TG1 {param}: {default_value} → {saved_value}")
                 button_commands[f"{param}1"] = saved_value
 
         # Send all commands in a single edit_performance call
@@ -437,11 +416,11 @@ def refresh_tab():
                     play_notes=False,
                     **button_commands
                 )
-                print(f"  • Sent {len(button_commands)} commands to restore performance state")
             except Exception as e:
                 print(f"  • Error sending commands: {e}")
     else:
-        print("PERFORMANCE EDITOR - Normal refresh (not from Patch Browser)")
+        # Normal refresh (not from Patch Browser)
+        pass
 
     return updates
 

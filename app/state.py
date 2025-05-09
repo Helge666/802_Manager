@@ -159,8 +159,6 @@ def update_tg_state(tg, key, value):
     if tg in tg_states and key in tg_states[tg]:
         tg_states[tg][key] = value
 
-# Add to state.py
-# In state.py
 current_tab = None
 previous_tab = None
 
@@ -168,4 +166,3 @@ def set_current_tab(tab_name):
     global current_tab, previous_tab
     previous_tab = current_tab
     current_tab = tab_name
-    print(f"DEBUG - Tab transition: {previous_tab} → {tab_name}")

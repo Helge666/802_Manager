@@ -5,9 +5,7 @@ from core.tx802_utils import play_test_notes as play_test_notes_util, load_confi
 
 state_manager = app.state
 
-
 def setup_tab():
-    print("########## settings.py setup_tab() triggered ##########")
     # Define Gradio event handlers
     def on_output_selected(port_name):
         try:
