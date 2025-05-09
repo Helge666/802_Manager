@@ -168,6 +168,7 @@ def setup_tab():
                                     container=False
                                 )
                                 all_interactive_inputs.append(elem)
+                                voice_dropdowns.append(elem)
 
                             elif col_name == "Receive":
                                 # MIDI receive channel dropdown: 1–16 or Omni
