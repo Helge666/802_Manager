@@ -8,7 +8,7 @@ Since the 802 Manager puts the TX802 into a known good init state on application
 
 **NOTE:** Many USB MIDI interfaces - despite being much newer than the TX802 - are unable to reliably transmit fast SysEx messages. For example, the popular MIDIFACE 2x2 falls into this category, whereas the MIDI Out of a Behringer XR18 rack mixer works as expected.
 ### Difficult things made easy
-The new core library tx802_utils.py implements an abstraction layer that reduces the complexity of the TX802 to simple commands. For example, you can now just switch a Tone Generator (TG) on or off, instead of dealing with Yamaha's archaic 'voice linking' concept."
+The new core library tx802_utils.py implements an abstraction layer that reduces the complexity of the TX802 to simple commands. For example, you can now just switch a Tone Generator (TG) on or off, instead of dealing with Yamaha's archaic 'voice linking' concept.
 
 **NOTE:** TG1 will always remain On. While TG1 *can* be muted, the TX802 does *not* allow it to be set to Off.
 ### Patch Database and Browser
@@ -93,7 +93,7 @@ This project was developed with the help of AI tools, but not through "Vibe Codi
 - Save bank to .syx file in Patch Librarian
 - Make rating, category, and comments editable
 - Add support for saving performances to syx or DB
-- Maybe add a Patch Editor?
+- Maybe add a Patch Editor after all?
 
 ## 📚 Sources & Acknowledgements
 **DX7 Patch Library**  
