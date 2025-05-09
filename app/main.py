@@ -36,8 +36,14 @@ with gr.Blocks() as tx802_manager:
 
                     # get_refresh_output() generalizes the Gradio compponent to maintain separation
                     # of concern in tx802_manager.py which is a thin orchestration layer
-                    if hasattr(tab_module, 'refresh_tab') and hasattr(tab_module, 'get_refresh_outputs'):
-                        refresh_outputs = tab_module.get_refresh_outputs()
+                    if hasattr(tab_module, 'refresh_tab'):
+                        # Check if the module has a specific component list to refresh
+                        if hasattr(tab_module, 'components_to_refresh'):
+                            refresh_outputs = tab_module.components_to_refresh
+                        else:
+                            # If no specific components are defined, use empty list
+                            refresh_outputs = []
+
                         tab.select(fn=tab_module.refresh_tab, inputs=[], outputs=refresh_outputs)
                         print(f"Added refresh trigger for tab: {tab_title}")
 

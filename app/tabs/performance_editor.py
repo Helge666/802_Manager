@@ -13,6 +13,7 @@ _config_dirty = False
 _config_save_timer = None
 
 voice_dropdowns = []
+components_to_refresh = []  # Will be populated in setup_tab
 
 def schedule_debounced_config_save(current_tg_states):
     """Schedules a debounced config save. Returns 'pending' immediately, and 'saved' later."""
@@ -94,7 +95,7 @@ def on_off_to_bool(val: str) -> int:
 # --- Gradio Tab Setup Functions ---
 def setup_tab():
     print("########## performance_editor.py setup_tab() triggered ##########")
-    global voice_dropdowns
+    global voice_dropdowns, components_to_refresh
     voice_dropdowns = []
 
     # state.init_tx802_performance_state()
@@ -274,6 +275,9 @@ def setup_tab():
                                 )
                                 all_interactive_inputs.append(elem)
 
+    # Update the components_to_refresh with the voice_dropdowns
+    components_to_refresh = voice_dropdowns
+
     with gr.Row():
         output_display = gr.Textbox(label="Action", interactive=False, scale=5)
         save_status_display = gr.Textbox(label="Status", value="✅ Config Saved", visible=True, scale=1)
@@ -376,14 +380,6 @@ def refresh_tab():
             gr.update(choices=preset_choices, value=default_preset)
         )
     return updates
-
-
-
-def get_refresh_outputs():
-    """Returns the components that need to be refreshed"""
-    global voice_dropdowns
-    return voice_dropdowns
-
 
 def lcd_display():
     # Store all link states in a dictionary
