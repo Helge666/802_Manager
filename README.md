@@ -5,6 +5,8 @@ v0.1.0 | 2025-05-09 | Helge T. Kautz
 802 Manager was designed for studio use. It treats the TX802 purely as an external sound module and doesn't use any permanent on-device storage or RAM cartridges. Instead, all patch and performance data and the required state handling will be done exclusively via the 802 Manager.
 ### No MIDI return required
 Since the 802 Manager puts the TX802 into a known good init state on application startup, and handles all state changes from there, no MIDI return channel is needed. It is sufficient to connect your computer's MIDI OUT to the TX802's MIDI IN. 
+
+**NOTE:** Many USB MIDI interfaces - despite being much newer than the TX802 - are unable to reliably transmit fast SysEx messages. For example, the popular MIDIFACE 2x2 falls into this category, whereas the MIDI Out of a Behringer XR18 rack mixer works as expected.
 ### Difficult things made easy
 The new core library tx802_utils.py implements an abstraction layer that that reduces the complexity of the TX802 to simple commands. For example, you can now just switch a Tone Generator (TG) on or off, instead of dealing with Yamaha's archaic 'voice linking' concept."
 ### Patch Database and Browser
