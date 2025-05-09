@@ -19,12 +19,12 @@ Optionally, the 802 Manager includes a number of command line tools with which a
 The 802 Manager also includes the new dx7_utils.py library which implements a comprehensive set of patch management functions. It validates SysEx, can extract single patches from banks, create new banks from individual patches, handle the new patch database functions, make "surprise" banks and a lot more.
 
 ### 📸 Patch Browser & Performance Editor
-<img src="assets/screenshots/02_browser_tab.png" width="400"/> -
-<img src="assets/screenshots/03_perform_tab.png" width="400"/>
+<img src="assets/screenshots/02_browser_tab.png" width="350"/> -
+<img src="assets/screenshots/03_perform_tab.png" width="350"/>
 
 ### 📸 Front Panel Control & Settings Page
-<img src="assets/screenshots/04_panel_tab.png" width="400"/> -
-<img src="assets/screenshots/01_settings_tab.png" width="400"/>
+<img src="assets/screenshots/04_panel_tab.png" width="350"/> -
+<img src="assets/screenshots/01_settings_tab.png" width="350"/>
 
 ### 🔧 Installation
 Please make sure git and Python are installed on your system.  It is recommended to use a virtual environment. For example, like this:
