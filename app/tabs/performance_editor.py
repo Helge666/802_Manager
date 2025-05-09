@@ -362,6 +362,7 @@ def setup_tab():
 
 def refresh_tab():
     # Rebuild the (label, value) pairs exactly as in setup_tab
+    print("########## refresh performance_editor ##########")
     preset_choices = [
         (patch_name, f"I{slot:02d}")
         for patch_name, slot in state.PATCH_BANK

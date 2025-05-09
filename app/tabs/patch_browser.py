@@ -34,6 +34,7 @@ COLUMNS_TO_DISPLAY = [col["id"] for col in COLUMN_CONFIG]
 COLUMN_HEADERS = [col["label"] for col in COLUMN_CONFIG]
 COLUMN_WIDTHS = [col["width"] for col in COLUMN_CONFIG]
 
+
 def setup_tab():
     # --- Database Interaction Logic ---
     def connect_db():
@@ -347,12 +348,6 @@ def setup_tab():
         except Exception as e:
             return f"❌ Error: {type(e).__name__}: {str(e)}"
 
-
-    outputs_list = [
-        output_dataframe, status_text,
-        current_page, total_pages, current_page_size,
-        first_btn, prev_btn, next_btn, last_btn
-    ]
 
     filter_text_input.submit(handle_filter_or_size_change, [filter_text_input, filter_rating_input, page_size_input], outputs_list)
     filter_rating_input.change(handle_filter_or_size_change, [filter_text_input, filter_rating_input, page_size_input], outputs_list)
