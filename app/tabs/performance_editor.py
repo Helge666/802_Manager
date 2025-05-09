@@ -365,10 +365,23 @@ def setup_tab():
             outputs=[output_display, save_status_display] # Update the status textbox
         )
 
-
 def refresh_tab():
     print("########## refresh performance_editor ##########")
     import app.state as state
+    from core.tx802_utils import edit_performance
+
+    print(f"DEBUG - Before check: current={state.current_tab}, previous={state.previous_tab}")
+
+    # Check if we're specifically returning from patch_browser
+    if state.previous_tab == "Patch Browser":
+        print("PERFORMANCE EDITOR - Returning from Patch Browser, restoring performance state:")
+        # ...
+    else:
+        print(f"PERFORMANCE EDITOR - Normal refresh (not from Patch Browser), previous tab was: '{state.previous_tab}'")
+
+    # Set the current tab
+    state.set_current_tab("Perform Edit")
+    print(f"DEBUG - After setting tab: current={state.current_tab}, previous={state.previous_tab}")
 
     # Rebuild the (label, value) pairs exactly as in setup_tab
     preset_choices = [
@@ -376,33 +389,60 @@ def refresh_tab():
         for patch_name, slot in state.PATCH_BANK
     ]
 
-    # Check if we're specifically returning from patch_browser
-    if state.previous_tab == "Patch Browser":
-        print("PERFORMANCE EDITOR - Returning from Patch Browser, restoring performance state:")
-
-        # 1. Determine which TGs need to be turned back ON (TGs 2-8)
-        for tg_num in range(2, 9):
-            current_state = state.tg_states[tg_num]["TG"]
-            if current_state == "On":
-                print(f"  • Would turn ON: TG{tg_num}")
-
-        # 2. For TG1, determine which parameters need to be restored from saved state
-        print("  • Would restore TG1 parameters to saved values:")
-        for param, saved_value in state.tg_states[1].items():
-            # Only need to show parameters that would change from DEFAULT
-            default_value = state.DEFAULT_TG_STATE.get(param)
-            if param not in ["TG", "PRESET"] and saved_value != default_value:
-                print(f"    - TG1 {param}: {default_value} → {saved_value}")
-    else:
-        print("PERFORMANCE EDITOR - Normal refresh (not from Patch Browser)")
-
-    # Continue with regular refresh functionality
     updates = []
     for i in range(len(voice_dropdowns)):
         default_preset = state.tg_states[i + 1]["PRESET"]
         updates.append(
             gr.update(choices=preset_choices, value=default_preset)
         )
+
+    # Check if we're specifically returning from patch_browser
+    if state.previous_tab == "Patch Browser":
+        print("PERFORMANCE EDITOR - Returning from Patch Browser, restoring performance state:")
+        button_commands = {}
+
+        # Only proceed if we have a valid MIDI output
+        if not state.midi_output:
+            print("  • No MIDI output configured - skipping TG restoration")
+            # Set the current tab in the state
+            state.set_current_tab("Perform Edit")
+            return updates
+
+        # 1. Turn back ON any TGs 2-8 that should be ON
+        for tg_num in range(2, 9):
+            current_state = state.tg_states[tg_num]["TG"]
+            if current_state == "On":
+                print(f"  • Turning ON: TG{tg_num}")
+                button_commands[f"TG{tg_num}"] = "On"
+
+        # 2. For TG1, restore parameters from saved state
+        print("  • Restoring TG1 parameters to saved values:")
+        for param, saved_value in state.tg_states[1].items():
+            # Skip TG (always ON) and PRESET (already handled by UI)
+            if param in ["TG", "PRESET"]:
+                continue
+
+            default_value = state.DEFAULT_TG_STATE.get(param)
+            if saved_value != default_value:
+                print(f"    - TG1 {param}: {default_value} → {saved_value}")
+                button_commands[f"{param}1"] = saved_value
+
+        # Send all commands in a single edit_performance call
+        if button_commands:
+            try:
+                edit_performance(
+                    port=state.midi_output,
+                    device_id=1,
+                    delay_after=0.02,
+                    play_notes=False,
+                    **button_commands
+                )
+                print(f"  • Sent {len(button_commands)} commands to restore performance state")
+            except Exception as e:
+                print(f"  • Error sending commands: {e}")
+    else:
+        print("PERFORMANCE EDITOR - Normal refresh (not from Patch Browser)")
+
     return updates
 
 def lcd_display():

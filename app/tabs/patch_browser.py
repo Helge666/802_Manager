@@ -7,7 +7,7 @@ import math
 import os
 
 from app.state import midi_output, PATCH_BANK, update_patch_bank
-from core.tx802_utils import send_patch_to_buffer, send_bank
+from core.tx802_utils import send_patch_to_buffer, send_bank, edit_performance
 from core.dx7_utils import get_patch_from_db, connect_to_db, create_bank
 
 # Semaphore to prevent concurrent MIDI operations
@@ -381,21 +381,34 @@ def setup_tab():
 def refresh_tab():
     print("########## refresh patch_browser ##########")
     import app.state as state
+    print(f"DEBUG - Before setting tab: current={state.current_tab}, previous={state.previous_tab}")
 
-    print("PATCH BROWSER - Preparing for patch auditioning:")
+    # Set the current tab
+    state.set_current_tab("Patch Browser")
+    print(f"DEBUG - After setting tab: current={state.current_tab}, previous={state.previous_tab}")
 
-    # 1. First, determine which TGs (besides TG1) need to be turned OFF
+    # Initialize button_commands dictionary BEFORE using it
+    button_commands = {}
+
+    # Only proceed if we have a valid MIDI output
+    if not state.midi_output:
+        print("  • No MIDI output configured - skipping TG setup")
+        return None
+
+    # 1. First, turn OFF TGs 2-8 if they are ON
     for tg_num in range(2, 9):  # TGs 2-8
         current_state = state.tg_states[tg_num]["TG"]
         if current_state == "On":
-            print(f"  • Would turn OFF: TG{tg_num}")
+            print(f"  • Turning OFF: TG{tg_num}")
+            # Don't update state yet - we'll restore it later
+            button_commands[f"TG{tg_num}"] = "Off"
 
     # 2. Reset TG1 to DEFAULT_TG_STATE while preserving TG and PRESET
     current_tg1 = state.tg_states[1]
     current_tg1_preset = current_tg1["PRESET"]
 
-    print(f"  • Would preserve TG1 preset: {current_tg1_preset}")
-    print("  • Would reset TG1 parameters to defaults:")
+    print(f"  • Preserving TG1 preset: {current_tg1_preset}")
+    print("  • Resetting TG1 parameters to defaults:")
 
     for param, default_value in state.DEFAULT_TG_STATE.items():
         # Skip TG (always ON) and PRESET (preserve current value)
@@ -405,9 +418,20 @@ def refresh_tab():
         current_value = current_tg1[param]
         if current_value != default_value:
             print(f"    - TG1 {param}: {current_value} → {default_value}")
+            button_commands[f"{param}1"] = default_value
 
-    # Set the current tab in the state
-    state.set_current_tab("Patch Browser")
+    # Send all commands in a single edit_performance call
+    if button_commands:
+        try:
+            edit_performance(
+                port=state.midi_output,
+                device_id=1,
+                delay_after=0.02,
+                play_notes=False,
+                **button_commands
+            )
+            print(f"  • Sent {len(button_commands)} commands to set up patch auditioning mode")
+        except Exception as e:
+            print(f"  • Error sending commands: {e}")
 
-    # No updates to return since patch_browser doesn't have components_to_refresh
     return None
