@@ -1,4 +1,4 @@
-# 🎛️ TX802 Manager
+# 🎛️ 802 Manager
 v1.0.0 | 2025-05-09 | Helge T. Kautz
 
 ### Design Philosophy
