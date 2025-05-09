@@ -93,6 +93,7 @@ def on_off_to_bool(val: str) -> int:
 
 # --- Gradio Tab Setup Functions ---
 def setup_tab():
+    print("################################################## SETUP TRIGGERED")
     global voice_dropdowns
     voice_dropdowns = []
 
