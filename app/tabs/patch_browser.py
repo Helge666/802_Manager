@@ -36,6 +36,7 @@ COLUMN_WIDTHS = [col["width"] for col in COLUMN_CONFIG]
 
 
 def setup_tab():
+    print("########## patch_browser.py setup_tab() triggered ##########")
     # --- Database Interaction Logic ---
     def connect_db():
         if not os.path.exists(DB_FILE):
@@ -375,3 +376,7 @@ def setup_tab():
     patch_bank_display.select(handle_bank_click, inputs=[last_selected_patch, patch_bank_internal], outputs=[patch_bank_display, patch_bank_internal])
 
     status_text.value = f"Found {initial_total_rows} matching patches."
+
+def refresh_tab():
+    print("########## refresh patch_browser ##########")
+    return None

@@ -7,6 +7,7 @@ state_manager = app.state
 
 
 def setup_tab():
+    print("########## settings.py setup_tab() triggered ##########")
     # Define Gradio event handlers
     def on_output_selected(port_name):
         try:

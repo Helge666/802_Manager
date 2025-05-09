@@ -11,6 +11,7 @@ midi_lock = threading.Semaphore(1)
 
 
 def setup_tab():
+    print("########## front_panel.py setup_tab() triggered ##########")
     """Setup the TX802 Front Panel tab UI"""
 
     # --- Gradio UI ---
