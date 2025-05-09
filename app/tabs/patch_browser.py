@@ -377,6 +377,37 @@ def setup_tab():
 
     status_text.value = f"Found {initial_total_rows} matching patches."
 
+
 def refresh_tab():
     print("########## refresh patch_browser ##########")
+    import app.state as state
+
+    print("PATCH BROWSER - Preparing for patch auditioning:")
+
+    # 1. First, determine which TGs (besides TG1) need to be turned OFF
+    for tg_num in range(2, 9):  # TGs 2-8
+        current_state = state.tg_states[tg_num]["TG"]
+        if current_state == "On":
+            print(f"  • Would turn OFF: TG{tg_num}")
+
+    # 2. Reset TG1 to DEFAULT_TG_STATE while preserving TG and PRESET
+    current_tg1 = state.tg_states[1]
+    current_tg1_preset = current_tg1["PRESET"]
+
+    print(f"  • Would preserve TG1 preset: {current_tg1_preset}")
+    print("  • Would reset TG1 parameters to defaults:")
+
+    for param, default_value in state.DEFAULT_TG_STATE.items():
+        # Skip TG (always ON) and PRESET (preserve current value)
+        if param in ["TG", "PRESET"]:
+            continue
+
+        current_value = current_tg1[param]
+        if current_value != default_value:
+            print(f"    - TG1 {param}: {current_value} → {default_value}")
+
+    # Set the current tab in the state
+    state.set_current_tab("Patch Browser")
+
+    # No updates to return since patch_browser doesn't have components_to_refresh
     return None

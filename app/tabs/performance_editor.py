@@ -365,15 +365,39 @@ def setup_tab():
             outputs=[output_display, save_status_display] # Update the status textbox
         )
 
+
 def refresh_tab():
-    # Rebuild the (label, value) pairs exactly as in setup_tab
     print("########## refresh performance_editor ##########")
+    import app.state as state
+
+    # Rebuild the (label, value) pairs exactly as in setup_tab
     preset_choices = [
         (patch_name, f"I{slot:02d}")
         for patch_name, slot in state.PATCH_BANK
     ]
+
+    # Check if we're specifically returning from patch_browser
+    if state.previous_tab == "Patch Browser":
+        print("PERFORMANCE EDITOR - Returning from Patch Browser, restoring performance state:")
+
+        # 1. Determine which TGs need to be turned back ON (TGs 2-8)
+        for tg_num in range(2, 9):
+            current_state = state.tg_states[tg_num]["TG"]
+            if current_state == "On":
+                print(f"  • Would turn ON: TG{tg_num}")
+
+        # 2. For TG1, determine which parameters need to be restored from saved state
+        print("  • Would restore TG1 parameters to saved values:")
+        for param, saved_value in state.tg_states[1].items():
+            # Only need to show parameters that would change from DEFAULT
+            default_value = state.DEFAULT_TG_STATE.get(param)
+            if param not in ["TG", "PRESET"] and saved_value != default_value:
+                print(f"    - TG1 {param}: {default_value} → {saved_value}")
+    else:
+        print("PERFORMANCE EDITOR - Normal refresh (not from Patch Browser)")
+
+    # Continue with regular refresh functionality
     updates = []
-    # One gr.update per voice_dropdown, matching get_refresh_outputs()
     for i in range(len(voice_dropdowns)):
         default_preset = state.tg_states[i + 1]["PRESET"]
         updates.append(
