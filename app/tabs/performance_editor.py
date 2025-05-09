@@ -360,7 +360,6 @@ def refresh_tab():
 
     # Set the current tab
     state.set_current_tab("Perform Edit")
-    print(f"DEBUG - After setting tab: current={state.current_tab}, previous={state.previous_tab}")
 
     # Rebuild the (label, value) pairs exactly as in setup_tab
     preset_choices = [

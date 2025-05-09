@@ -133,7 +133,6 @@ def update_patch_bank(slot, patch_name):
     """
     if 0 <= slot < 32:
         PATCH_BANK[slot] = (patch_name, slot + 1)
-    #  print(f"Updated PATCH_BANK slot {slot} with {patch_name}")
 
 
 # Define a default TG state as a reusable constant ---
