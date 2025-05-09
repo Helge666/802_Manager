@@ -8,7 +8,9 @@ Since the 802 Manager puts the TX802 into a known good init state on application
 
 **NOTE:** Many USB MIDI interfaces - despite being much newer than the TX802 - are unable to reliably transmit fast SysEx messages. For example, the popular MIDIFACE 2x2 falls into this category, whereas the MIDI Out of a Behringer XR18 rack mixer works as expected.
 ### Difficult things made easy
-The new core library tx802_utils.py implements an abstraction layer that that reduces the complexity of the TX802 to simple commands. For example, you can now just switch a Tone Generator (TG) on or off, instead of dealing with Yamaha's archaic 'voice linking' concept."
+The new core library tx802_utils.py implements an abstraction layer that reduces the complexity of the TX802 to simple commands. For example, you can now just switch a Tone Generator (TG) on or off, instead of dealing with Yamaha's archaic 'voice linking' concept."
+
+**NOTE:** TG1 will always remain On. While TG1 *can* be muted, the TX802 does *not* allow it to be set to Off.
 ### Patch Database and Browser
 The 802 Manager comes with tens of thousands of patches consolidated from several sources on the internet. Patches with the same name but different sound parameters were kept; patches with different names but identical sound data were excluded. A Patch Browser with filter functionality was implemented. The Patch browser maintains its own audit settings to enable easy patch pre-listening.
 ### Performance Editor
@@ -18,7 +20,6 @@ All tunctions available from the TX802's front panel can be controlled remotely 
 ### Command Line Utilities
 Optionally, the 802 Manager includes a number of command line tools with which all functionality of the TX802 can be remotely controlled using easy-to-understand commands (e.g. TG2=On, TG4=Off, PRESET2=I10, PAN2=Left, PAN3=Right, OUTVOL3=75, etc. The Front Panel can also be controlled from the command line.
 
-**NOTE:** TG1 will always remain On. While TG1 *can* be muted, the TX802 does *not* allow it to be set to Off.
 ### And More
 The 802 Manager also includes the new dx7_utils.py library which implements a comprehensive set of patch management functions. It validates SysEx, can extract single patches from banks, create new banks from individual patches, handle the new patch database functions, make "surprise" banks and a lot more.
 
