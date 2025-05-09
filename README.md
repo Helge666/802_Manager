@@ -16,7 +16,9 @@ The heart of the 802 Manager is its Performance Editor, that makes it very easy 
 ### Front Panel Control
 All tunctions available from the TX802's front panel can be controlled remotely now. Additionally, macro functions that aren't directly available on the front panel were also added, e.g. PRTCT_ON/PRTCT_OFF and RESET.
 ### Command Line Utilities
-Optionally, the 802 Manager includes a number of command line tools with which all functionality of the TX802 can be remotely controlled using easy-to-understand commands (e.g. TG=On, TG=Off, PRESET2=I10, PAN2=Left, PAN3=Right, OUTVOL3=75, etc. The Front Panel can also be controlled from the command line.
+Optionally, the 802 Manager includes a number of command line tools with which all functionality of the TX802 can be remotely controlled using easy-to-understand commands (e.g. TG2=On, TG4=Off, PRESET2=I10, PAN2=Left, PAN3=Right, OUTVOL3=75, etc. The Front Panel can also be controlled from the command line.
+
+**NOTE:** TG1 will always remain On. While TG1 *can* be muted, the TX802 does *not* allow it to be set to Off.
 ### And More
 The 802 Manager also includes the new dx7_utils.py library which implements a comprehensive set of patch management functions. It validates SysEx, can extract single patches from banks, create new banks from individual patches, handle the new patch database functions, make "surprise" banks and a lot more.
 
