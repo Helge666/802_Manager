@@ -83,7 +83,7 @@ Observe the TX802 Panel; it should reflect the changes these scripts are sending
 > python cli/tx802/perform_edit.py --edits PRESET1=I01
 
 ## 🤖 A Note on AI Assistance
-This project was developed with the help of AI tools, but not through "Vibe Coding". As a veteran coder since before the TX802 even hit the market, I manually wrote code and reviewed the generated parts to the best of my ability. Or, as Inspector Sledge Hammer used to say right when the TX802 was state of the art: "Trust me, I know what I'm doing!"
+This project was developed with the help of AI tools, but not through "Vibe Coding". As a veteran coder since before the TX802 even hit the market, I manually contributed code and reviewed the generated parts to the best of my ability. Or, as Inspector Sledge Hammer used to say right when the TX802 was state of the art: "Trust me, I know what I'm doing!"
 
 ### 📌 TODO
 - Commit patch bank to unit on PE tab switch (if uncommitted)
