@@ -49,7 +49,7 @@ After installation, start the TX802 Manager GUI with
 
 Then open the GUI in e.g. Chrome by clicking on http://localhost:7860
 
-
+**NOTE:** Why Python/Gradio? Well, if you have a hammer, every problem looks like a nail :-) Or in other words, I'm using Python/Gradio because I'm familiar with it. I'm not opposed to porting the 802 Manager to a prettier framework in the future.
 ### ✅ Tested With
 - Windows 11 Pro
 - Python 3.12+
