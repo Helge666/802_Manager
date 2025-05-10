@@ -4,7 +4,7 @@ v1.1.0 | 2025-05-10 | Helge T. Kautz
 ### Design Philosophy
 802 Manager was designed for studio use. It treats the TX802 purely as an external sound module and doesn't use any permanent on-device storage or RAM cartridges. Instead, all preset and performance data and the required state handling will be done exclusively via the 802 Manager.
 ### No MIDI return required
-Since the 802 Manager puts the TX802 into a known good init state on application startup, and handles all state changes from there, no MIDI return channel is needed. It is sufficient to connect your computer's MIDI OUT to the TX802's MIDI IN. 
+Since the 802 Manager puts the TX802 into a known good init state on application startup, and handles all state changes from there, no MIDI return channel is required. It is sufficient to connect your computer's MIDI OUT to the TX802's MIDI IN. 
 
 **NOTE:** Many USB MIDI interfaces - despite being much newer than the TX802 - are unable to reliably handle fast or lage SysEx messages. For example, the popular MIDIFACE 2x2 falls into this category, whereas the MIDI Out of a Behringer XR18 rack mixer works as expected.
 ### Difficult things made easy
