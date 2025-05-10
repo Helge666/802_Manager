@@ -19,7 +19,7 @@ Thumbs.db
 
 # Project-specific
 # Local patch DB and settings — tracked manually if needed
-config/dx_patch_library.sqlite3
+config/dx_preset_library.sqlite3
 config/802_manager_settings.json
 assets/banks/*.syx
 assets/documentation/

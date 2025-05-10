@@ -8,10 +8,10 @@ import pathlib
 from typing import Optional, Tuple, List, Dict, Union, Any, ByteString
 
 
-# --- Default INIT Patch Data (155 bytes, single voice format) ---
+# --- Default INIT Preset Data (155 bytes, single voice format) ---
 # CORRECTED Structure & Length: 6xOp[21], PEG[8], ALG[1], FB[1], OSYNC[1], LFO[7], TRNSP[1], NAME[10] = 155 bytes
 
-# This is a really ugly sounding INIT patch. Needs to be revised to just be a standard sine...
+# This is a really ugly sounding INIT Preset. Needs to be revised to just be a standard sine...
 DEFAULT_INIT_VOICE_155 = bytes([
     # OP6 - 21 bytes: R1-4, L1-4, BP, LD, RD, LC, RC, RS, Detune(7), AMS(0), KVS(0), OL(99), Mode(0), FC(1), FF(0), Dummy(0)
     50, 50, 50, 99, 99, 99, 99, 0, 0, 0, 0, 0, 0, 7, 0, 0, 99, 0, 1, 0, 7,  # Added Detune=7 based on spec D index 20
@@ -41,9 +41,9 @@ DEFAULT_INIT_VOICE_155 = bytes([
     ord('I'), ord('N'), ord('I'), ord('T'), ord(' '), ord(' '), ord(' '), ord(' '), ord(' '), 0x20,
 ])  # Total 155 bytes
 
-# Dictionary for specific character replacements in patch names for DB storage
+# Dictionary for specific character replacements in preset names for DB storage
 # Maps the character extracted by ASCII decode to the desired character.
-DB_PATCHNAME_CHAR_MAP = {
+DB_PRESETNAME_CHAR_MAP = {
     '\\': 'Y'  # Replace backslash (from byte 0x5C, likely Yen ¥) with Y
     # Add other mappings here later if needed, e.g., '`': 'A'
 }
@@ -143,7 +143,7 @@ def is_valid_dx7_bank(file_content: bytes) -> Tuple[bool, str]:
 
     # Verify bank checksum (data bytes 6 to 4101 inclusive)
     data = file_content[6:4102]
-    if len(data) != 4096:  # 32 patches * 128 bytes/patch
+    if len(data) != 4096:  # 32 presets * 128 bytes/preset
         return False, f"Unexpected data length for checksum: got {len(data)}, expected 4096"
 
     # Bank checksum calculation: sum data bytes, take lower 7 bits, subtract from 128, take lower 7 bits
@@ -156,8 +156,8 @@ def is_valid_dx7_bank(file_content: bytes) -> Tuple[bool, str]:
     return True, "Valid DX7 32-voice bank file"
 
 
-def extract_patch_name_from_sysex(sysex_data: bytes) -> str:
-    """Extract patch name from SysEx data for display purposes."""
+def extract_preset_name_from_sysex(sysex_data: bytes) -> str:
+    """Extract preset name from SysEx data for display purposes."""
     if len(sysex_data) != 163:
         return "Unknown"
 
@@ -176,8 +176,8 @@ def extract_patch_name_from_sysex(sysex_data: bytes) -> str:
         return "Unnamed"
 
 
-def extract_patch_name_from_unpacked(unpacked_data_155: bytes) -> str:
-    """Extracts the raw patch name (10 bytes) from unpacked 155-byte data."""
+def extract_preset_name_from_unpacked(unpacked_data_155: bytes) -> str:
+    """Extracts the raw preset name (10 bytes) from unpacked 155-byte data."""
     if len(unpacked_data_155) != 155:
         raise ValueError("Expected 155 bytes of unpacked data for name extraction.")
     name_bytes = unpacked_data_155[145:155]  # Bytes 145-154 are the name
@@ -193,7 +193,7 @@ def extract_patch_name_from_unpacked(unpacked_data_155: bytes) -> str:
 def apply_db_char_mapping(name: str, mapping_dict: Optional[Dict[str, str]] = None) -> str:
     """Applies character replacements based on the provided dictionary."""
     if mapping_dict is None:
-        mapping_dict = DB_PATCHNAME_CHAR_MAP
+        mapping_dict = DB_PRESETNAME_CHAR_MAP
     mapped_name = "".join(mapping_dict.get(char, char) for char in name)
     return mapped_name
 
@@ -307,16 +307,16 @@ def connect_to_db(db_path: str) -> Optional[sqlite3.Connection]:
         return None
 
 
-def get_patch_from_db(conn: sqlite3.Connection, patch_id: int) -> Tuple[Optional[int], Optional[str], Optional[bytes]]:
-    """Retrieve a patch from the database by ID."""
+def get_preset_from_db(conn: sqlite3.Connection, preset_id: int) -> Tuple[Optional[int], Optional[str], Optional[bytes]]:
+    """Retrieve a preset from the database by ID."""
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, patchname, sysex FROM patches WHERE id = ?", (int(patch_id),))
+        cursor.execute("SELECT id, presetname, sysex FROM presets WHERE id = ?", (int(preset_id),))
         result = cursor.fetchone()
 
         if result:
-            patch_id, patch_name, sysex_blob = result
-            return patch_id, patch_name, sysex_blob
+            preset_id, preset_name, sysex_blob = result
+            return preset_id, preset_name, sysex_blob
         else:
             return None, None, None
     except sqlite3.Error as e:
@@ -325,16 +325,16 @@ def get_patch_from_db(conn: sqlite3.Connection, patch_id: int) -> Tuple[Optional
 
 
 def setup_database(db_path: str) -> Tuple[Optional[sqlite3.Connection], Optional[sqlite3.Cursor]]:
-    """Connects to or creates the SQLite DB and ensures the patches table exists."""
+    """Connects to or creates the SQLite DB and ensures the presets table exists."""
     conn = None
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         # Use IF NOT EXISTS for table creation
         cursor.execute('''
-        CREATE TABLE IF NOT EXISTS patches (
+        CREATE TABLE IF NOT EXISTS presets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            patchname TEXT NOT NULL,
+            presetname TEXT NOT NULL,
             category TEXT DEFAULT '',
             bankfile TEXT NOT NULL,
             comments TEXT DEFAULT '',
@@ -346,7 +346,7 @@ def setup_database(db_path: str) -> Tuple[Optional[sqlite3.Connection], Optional
         ''')
         # Optional: Create an index on hash for faster lookups if needed
         cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_patch_hash ON patches (hash)
+        CREATE INDEX IF NOT EXISTS idx_preset_hash ON presets (hash)
         ''')
         conn.commit()
         print(f"Database setup complete: {db_path}")
@@ -359,24 +359,24 @@ def setup_database(db_path: str) -> Tuple[Optional[sqlite3.Connection], Optional
         return None, None
 
 
-def insert_patch_to_db(cursor: sqlite3.Cursor, patch_name: str, bank_filename: str,
-                       patch_hash: str, patch_sysex: bytes, origin: str = '') -> bool:
-    """Inserts a patch into the database. Returns True on success, False on failure."""
+def insert_preset_to_db(cursor: sqlite3.Cursor, preset_name: str, bank_filename: str,
+                       preset_hash: str, preset_sysex: bytes, origin: str = '') -> bool:
+    """Inserts a preset into the database. Returns True on success, False on failure."""
     try:
         cursor.execute('''
-        INSERT INTO patches (patchname, bankfile, hash, sysex, category, origin)
+        INSERT INTO presets (presetname, bankfile, hash, sysex, category, origin)
         VALUES (?, ?, ?, ?, '', ?)
-        ''', (patch_name, bank_filename, patch_hash, patch_sysex, origin))
+        ''', (preset_name, bank_filename, preset_hash, preset_sysex, origin))
         # If execute succeeds without error, the insert was successful
         return True
     except sqlite3.IntegrityError:
         # UNIQUE constraint failed, meaning the hash already exists.
         # Provide a more specific message here:
-        print(f"Duplicate ignored: Patch '{patch_name}' (Hash: {patch_hash}) already exists in the database.")
+        print(f"Duplicate ignored: Preset '{preset_name}' (Hash: {preset_hash}) already exists in the database.")
         return False  # Indicate not inserted, but it's not a critical script error
     except sqlite3.Error as e:
         # Handle other potential database errors during insertion
-        print(f"DB Insert Error for patch '{patch_name}' (Hash: {patch_hash}): {e}", file=sys.stderr)
+        print(f"DB Insert Error for preset '{preset_name}' (Hash: {preset_hash}): {e}", file=sys.stderr)
         return False  # Indicate failure
 
 
@@ -479,7 +479,7 @@ def unpack_bank_voice_to_single(packed_data: bytes) -> bytes:
     return bytes(unpacked)  # Return immutable bytes
 
 
-def create_single_patch_sysex(packed_data: bytes) -> bytes:
+def create_single_preset_sysex(packed_data: bytes) -> bytes:
     """
     Creates a valid single-voice SysEx message (163 bytes) from 128-byte packed bank data.
     """
@@ -503,9 +503,9 @@ def create_single_patch_sysex(packed_data: bytes) -> bytes:
     return sysex_message
 
 
-def generate_patch_report(packed_data: bytes, patch_name_raw: str) -> str:
+def generate_preset_report(packed_data: bytes, preset_name_raw: str) -> str:
     # Basic report template - can be expanded as needed
-    report = [f"Patch Report: {patch_name_raw}\n"]
+    report = [f"Preset Report: {preset_name_raw}\n"]
     report.append("=" * 50 + "\n")
     try:
         algorithm = packed_data[110] & 0x1F
@@ -529,7 +529,7 @@ def generate_patch_report(packed_data: bytes, patch_name_raw: str) -> str:
 def extract_bank(bankfile: str, output_folder: Optional[str] = None,
                  db_path: Optional[str] = None, generate_report: bool = False,
                  origin: Optional[str] = None) -> bool:
-    """Extracts individual patches from a DX7 bank file."""
+    """Extracts individual presets from a DX7 bank file."""
     try:
         # Read bank file
         with open(bankfile, "rb") as f:
@@ -553,10 +553,10 @@ def extract_bank(bankfile: str, output_folder: Optional[str] = None,
                 print("Failed to initialize database connection. Aborting DB operations.")
                 db_cursor = None  # Ensure cursor is None if setup failed
 
-        # Extract patches
-        patch_start_offset = 6  # Data starts after 6 header bytes
-        packed_patch_size = 128
-        num_patches = 32
+        # Extract presets
+        preset_start_offset = 6  # Data starts after 6 header bytes
+        packed_preset_size = 128
+        num_presets = 32
 
         errors = []
         success_count = 0
@@ -578,42 +578,42 @@ def extract_bank(bankfile: str, output_folder: Optional[str] = None,
         if write_db:
             print(f"Database mode active.")
 
-        for i in range(num_patches):
-            start = patch_start_offset + i * packed_patch_size
-            end = start + packed_patch_size
-            patch_num = i + 1  # 1-based index for messages
+        for i in range(num_presets):
+            start = preset_start_offset + i * packed_preset_size
+            end = start + packed_preset_size
+            preset_num = i + 1  # 1-based index for messages
 
             try:
                 # 1. Get Packed Data
                 packed_data = file_content[start:end]
-                if len(packed_data) != packed_patch_size:
-                    errors.append(f"Patch {patch_num}: Incomplete packed data.")
+                if len(packed_data) != packed_preset_size:
+                    errors.append(f"preset {preset_num}: Incomplete packed data.")
                     continue
 
                 # 2. Unpack to 155-byte voice data
                 try:
                     voice_data_155 = unpack_bank_voice_to_single(packed_data)
                 except Exception as e:
-                    errors.append(f"Patch {patch_num}: Failed during unpacking - {e}")
+                    errors.append(f"Preset {preset_num}: Failed during unpacking - {e}")
                     continue
 
                 # 3. Extract Raw Name (for DB)
-                patch_name_raw = extract_patch_name_from_unpacked(voice_data_155)
+                preset_name_raw = extract_preset_name_from_unpacked(voice_data_155)
 
                 # 4. Calculate Hash (MD5 of first 145 bytes of unpacked data)
                 hash_data = voice_data_155[0:145]
-                patch_hash = hashlib.md5(hash_data).hexdigest()
+                preset_hash = hashlib.md5(hash_data).hexdigest()
 
                 # 5. Create Full 163-byte SysEx Message (Needed for both DB and file)
                 try:
-                    patch_syx = create_single_patch_sysex(packed_data)
+                    preset_syx = create_single_preset_sysex(packed_data)
                     # Internal verification
-                    is_valid_internal, msg_internal, _ = verify_single_voice_sysex(patch_syx, f"Internal Patch {patch_num}")
+                    is_valid_internal, msg_internal, _ = verify_single_voice_sysex(preset_syx, f"Internal Preset {preset_num}")
                     if not is_valid_internal:
-                        errors.append(f"Patch {patch_num} ({patch_name_raw}): Internal SysEx validation failed - {msg_internal}")
+                        errors.append(f"Preset {preset_num} ({preset_name_raw}): Internal SysEx validation failed - {msg_internal}")
                         continue
                 except Exception as e:
-                    errors.append(f"Patch {patch_num} ({patch_name_raw}): Failed during SysEx creation - {e}")
+                    errors.append(f"Preset {preset_num} ({preset_name_raw}): Failed during SysEx creation - {e}")
                     continue
 
                 # --- Perform Actions ---
@@ -624,35 +624,35 @@ def extract_bank(bankfile: str, output_folder: Optional[str] = None,
                 # 6. Insert into Database (if requested)
                 if write_db:
                     db_insert_attempted = True
-                    patch_name_cooked = apply_db_char_mapping(patch_name_raw)
-                    if insert_patch_to_db(db_cursor, patch_name_cooked, bank_filename_base, patch_hash, patch_syx,
+                    preset_name_cooked = apply_db_char_mapping(preset_name_raw)
+                    if insert_preset_to_db(db_cursor, preset_name_cooked, bank_filename_base, preset_hash, preset_syx,
                                           origin if origin else ''):
                         db_inserted_count += 1
                         action_success = True  # DB insert counts as success
                     else:
-                        # Already logged by insert_patch_to_db
+                        # Already logged by insert_preset_to_db
                         pass
 
                 # 7. Write to File (if requested)
                 if write_files:
                     file_write_attempted = True
                     # Sanitize name for filename
-                    patch_name_for_file = sanitize_filename(patch_name_raw, fallback_name=f"Patch_{patch_num:02}")
-                    patch_file_path = os.path.join(output_folder, f"{patch_name_for_file}.syx")
-                    report_file_path = os.path.join(output_folder, f"{patch_name_for_file}_report.txt")
+                    preset_name_for_file = sanitize_filename(preset_name_raw, fallback_name=f"Preset_{preset_num:02}")
+                    preset_file_path = os.path.join(output_folder, f"{preset_name_for_file}.syx")
+                    report_file_path = os.path.join(output_folder, f"{preset_name_for_file}_report.txt")
 
                     try:
-                        with open(patch_file_path, "wb") as f:
-                            f.write(patch_syx)
+                        with open(preset_file_path, "wb") as f:
+                            f.write(preset_syx)
 
                         # Verify the written file
-                        with open(patch_file_path, "rb") as f:
-                            is_valid_file, message_file, _ = verify_single_voice_sysex(f.read(), patch_file_path)
+                        with open(preset_file_path, "rb") as f:
+                            is_valid_file, message_file, _ = verify_single_voice_sysex(f.read(), preset_file_path)
 
                         if not is_valid_file:
-                            errors.append(f"Patch {patch_num} ({patch_name_for_file}): Written file verification failed - {message_file}")
+                            errors.append(f"Preset {preset_num} ({preset_name_for_file}): Written file verification failed - {message_file}")
                             try:
-                                os.remove(patch_file_path)  # Clean up invalid file
+                                os.remove(preset_file_path)  # Clean up invalid file
                             except OSError:
                                 pass
                         else:
@@ -662,16 +662,16 @@ def extract_bank(bankfile: str, output_folder: Optional[str] = None,
                             # Write report if requested and file write succeeded
                             if generate_report:
                                 try:
-                                    report_content = generate_patch_report(packed_data, patch_name_raw)
+                                    report_content = generate_preset_report(packed_data, preset_name_raw)
                                     with open(report_file_path, "w", encoding='utf-8') as rf:
                                         rf.write(report_content)
                                 except Exception as e:
-                                    print(f"Warning: Patch {patch_num} ({patch_name_for_file}): Could not write report - {e}")
+                                    print(f"Warning: Preset {preset_num} ({preset_name_for_file}): Could not write report - {e}")
 
                     except IOError as e:
-                        errors.append(f"Patch {patch_num} ({patch_name_for_file}): Failed to write file - {e}")
+                        errors.append(f"Preset {preset_num} ({preset_name_for_file}): Failed to write file - {e}")
                     except Exception as e:
-                        errors.append(f"Patch {patch_num} ({patch_name_for_file}): Error during file write/verify - {e}")
+                        errors.append(f"Preset {preset_num} ({preset_name_for_file}): Error during file write/verify - {e}")
 
                 # --- Update Success Count ---
                 if action_success:
@@ -681,13 +681,13 @@ def extract_bank(bankfile: str, output_folder: Optional[str] = None,
                         status_msg.append("DB OK")
                     if file_write_attempted and files_written_count > 0:
                         status_msg.append("File OK")
-                    print(f"Processed Patch {patch_num:02} ('{patch_name_raw}'): {' / '.join(status_msg)}")
+                    print(f"Processed Preset {preset_num:02} ('{preset_name_raw}'): {' / '.join(status_msg)}")
                 elif not action_success and (db_insert_attempted or file_write_attempted):
-                    if not any(f"Patch {patch_num}" in err for err in errors):
-                        errors.append(f"Patch {patch_num} ({patch_name_raw}): Failed both DB insert and file write.")
+                    if not any(f"Preset {preset_num}" in err for err in errors):
+                        errors.append(f"Preset {preset_num} ({preset_name_raw}): Failed both DB insert and file write.")
 
             except Exception as e:
-                errors.append(f"Patch {patch_num}: UNEXPECTED error during processing - {e}")
+                errors.append(f"Preset {preset_num}: UNEXPECTED error during processing - {e}")
                 traceback.print_exc()
                 continue
 
@@ -706,11 +706,11 @@ def extract_bank(bankfile: str, output_folder: Optional[str] = None,
         print("-" * 50)
         print(f"Processing complete.")
         if write_files:
-            print(f"Files written: {files_written_count} / {num_patches}")
+            print(f"Files written: {files_written_count} / {num_presets}")
         if write_db:
-            print(f"Database records inserted: {db_inserted_count} / {num_patches} (Duplicates skipped)")
+            print(f"Database records inserted: {db_inserted_count} / {num_presets} (Duplicates skipped)")
 
-        print(f"Overall successful patches (DB insert or File write): {success_count} / {num_patches}")
+        print(f"Overall successful presets (DB insert or File write): {success_count} / {num_presets}")
 
         if errors:
             print("\nErrors/Warnings encountered:")
@@ -718,7 +718,7 @@ def extract_bank(bankfile: str, output_folder: Optional[str] = None,
                 print(f"- {error}")
         print("-" * 50)
 
-        # Return success if at least one action worked per patch (if actions were requested)
+        # Return success if at least one action worked per preset (if actions were requested)
         if not write_files and not write_db:
             return True  # Only validation was done
         else:
@@ -732,26 +732,26 @@ def extract_bank(bankfile: str, output_folder: Optional[str] = None,
 
 # --- Main Processing Functions ---
 
-def create_bank(bankfile: str, patchfiles: Optional[str] = None,
-                db_path: Optional[str] = None, patchids: Optional[str] = None) -> bool:
-    """Creates a DX7 bank file from individual patch files and/or database patches."""
+def create_bank(bankfile: str, presetfiles: Optional[str] = None,
+                db_path: Optional[str] = None, presetids: Optional[str] = None) -> bool:
+    """Creates a DX7 bank file from individual preset files and/or database presets."""
     output_filename = bankfile
-    all_packed_patches = []
+    all_packed_presets = []
 
     # Counters for reporting
-    file_patches_count = 0
-    db_patches_count = 0
+    file_presets_count = 0
+    db_presets_count = 0
 
     print(f"Creating bank file: {output_filename}")
 
-    # 1. Process patches from files if specified
-    if patchfiles:
-        file_patches = patchfiles.split(',')
-        file_patches = [f.strip() for f in file_patches if f.strip()]  # Remove empty entries
+    # 1. Process presets from files if specified
+    if presetfiles:
+        file_presets = presetfiles.split(',')
+        file_presets = [f.strip() for f in file_presets if f.strip()]  # Remove empty entries
 
-        print(f"\nProcessing {len(file_patches)} patch file(s)...")
-        for i, filename in enumerate(file_patches):
-            print(f"  Processing file patch: {filename}")
+        print(f"\nProcessing {len(file_presets)} preset file(s)...")
+        for i, filename in enumerate(file_presets):
+            print(f"  Processing file preset: {filename}")
             try:
                 with open(filename, "rb") as f:
                     sysex_data = f.read()
@@ -761,11 +761,11 @@ def create_bank(bankfile: str, patchfiles: Optional[str] = None,
                     print(f"    ERROR: {message}. Skipping.")
                     continue
 
-                patch_name = extract_patch_name_from_sysex(sysex_data)
+                preset_name = extract_preset_name_from_sysex(sysex_data)
                 packed_data_128 = pack_single_to_bank_voice(voice_data_155)
-                all_packed_patches.append(packed_data_128)
-                file_patches_count += 1
-                print(f"    Added patch '{patch_name}' from file")
+                all_packed_presets.append(packed_data_128)
+                file_presets_count += 1
+                print(f"    Added preset '{preset_name}' from file")
 
             except FileNotFoundError:
                 print(f"    ERROR: File not found: {filename}.")
@@ -775,90 +775,90 @@ def create_bank(bankfile: str, patchfiles: Optional[str] = None,
                 print(f"    ERROR: Unexpected error processing {filename}: {e}")
                 traceback.print_exc()
 
-    # 2. Process patches from database if specified
-    if db_path and patchids:
-        patch_ids = patchids.split(',')
-        patch_ids = [id.strip() for id in patch_ids if id.strip()]  # Remove empty entries
+    # 2. Process presets from database if specified
+    if db_path and presetids:
+        preset_ids = presetids.split(',')
+        preset_ids = [id.strip() for id in preset_ids if id.strip()]  # Remove empty entries
 
         conn = connect_to_db(db_path)
         if not conn:
             print("Failed to connect to database. Aborting database operations.")
         else:
             try:
-                print(f"\nRetrieving {len(patch_ids)} patch(es) from database...")
-                for patch_id in patch_ids:
+                print(f"\nRetrieving {len(preset_ids)} preset(e) from database...")
+                for preset_id in preset_ids:
                     try:
-                        patch_id_int = int(patch_id)
-                        db_id, patch_name, sysex_blob = get_patch_from_db(conn, patch_id_int)
+                        preset_id_int = int(preset_id)
+                        db_id, preset_name, sysex_blob = get_preset_from_db(conn, preset_id_int)
 
                         if sysex_blob is None:
-                            print(f"    ERROR: Patch ID {patch_id} not found in database.")
+                            print(f"    ERROR: Preset ID {preset_id} not found in database.")
                             continue
 
                         # Convert BLOB to bytes if needed
                         if not isinstance(sysex_blob, bytes):
                             sysex_blob = bytes(sysex_blob)
 
-                        is_valid, message, voice_data_155 = verify_single_voice_sysex(sysex_blob, f"DB ID:{patch_id}")
+                        is_valid, message, voice_data_155 = verify_single_voice_sysex(sysex_blob, f"DB ID:{preset_id}")
                         if not is_valid:
-                            print(f"    ERROR: Database patch ID {patch_id}: {message}. Skipping.")
+                            print(f"    ERROR: Database preset ID {preset_id}: {message}. Skipping.")
                             continue
 
                         packed_data_128 = pack_single_to_bank_voice(voice_data_155)
-                        all_packed_patches.append(packed_data_128)
-                        db_patches_count += 1
-                        print(f"    Added patch '{patch_name}' (ID: {db_id}) from database")
+                        all_packed_presets.append(packed_data_128)
+                        db_presets_count += 1
+                        print(f"    Added preset '{preset_name}' (ID: {db_id}) from database")
 
                     except ValueError:
-                        print(f"    ERROR: Invalid patch ID '{patch_id}'. Must be an integer.")
+                        print(f"    ERROR: Invalid preset ID '{preset_id}'. Must be an integer.")
                     except Exception as e:
-                        print(f"    ERROR: Failed to process database patch ID {patch_id}: {e}")
+                        print(f"    ERROR: Failed to process database preset ID {preset_id}: {e}")
                         traceback.print_exc()
             finally:
                 conn.close()
 
-    # 3. Check if we have patches and if we're within the 32 patch limit
-    total_patches = len(all_packed_patches)
-    if total_patches == 0:
-        print("\nERROR: No valid patches were processed. Bank file not created.")
+    # 3. Check if we have presets and if we're within the 32 preset limit
+    total_presets = len(all_packed_presets)
+    if total_presets == 0:
+        print("\nERROR: No valid presets were processed. Bank file not created.")
         return False
 
-    if total_patches > 32:
-        print(f"\nERROR: Too many patches ({total_patches}). DX7 bank is limited to 32 patches.")
+    if total_presets > 32:
+        print(f"\nERROR: Too many presets ({total_presets}). DX7 bank is limited to 32 presets.")
         print("Bank file creation aborted.")
         return False
 
-    # 4. Add INIT patches to fill the bank if needed
-    num_init_patches = 32 - total_patches
-    if num_init_patches > 0:
-        print(f"\nPreparing {num_init_patches} INIT patch(es) to complete the bank...")
+    # 4. Add INIT presets to fill the bank if needed
+    num_init_presets = 32 - total_presets
+    if num_init_presets > 0:
+        print(f"\nPreparing {num_init_presets} INIT preset(e) to complete the bank...")
         try:
             init_packed_128_template = bytearray(pack_single_to_bank_voice(DEFAULT_INIT_VOICE_155))
 
-            for i in range(num_init_patches):
-                patch_num = total_patches + i + 1
-                init_name_str = f"INIT {patch_num:02d}".ljust(10)  # Ensure 10 chars, ends with space
+            for i in range(num_init_presets):
+                preset_num = total_presets + i + 1
+                init_name_str = f"INIT {preset_num:02d}".ljust(10)  # Ensure 10 chars, ends with space
                 init_name_bytes = init_name_str.encode('ascii')
 
                 current_init_packed = bytearray(init_packed_128_template)
                 # Write all 10 name chars (118-127)
                 current_init_packed[118:128] = init_name_bytes
 
-                all_packed_patches.append(bytes(current_init_packed))
-            print(f"Successfully added {num_init_patches} INIT patches.")
+                all_packed_presets.append(bytes(current_init_packed))
+            print(f"Successfully added {num_init_presets} INIT presets.")
         except Exception as e:
-            print(f"    ERROR: Failed to prepare INIT patches: {e}")
+            print(f"    ERROR: Failed to prepare INIT presets: {e}")
             traceback.print_exc()
             print(">>> Bank file creation aborted <<<")
             return False
 
     # 5. Assemble Bank File Data
     print("\nAssembling bank file data...")
-    if len(all_packed_patches) != 32:
-        print(f"ERROR: Expected 32 patches, found {len(all_packed_patches)}.")
+    if len(all_packed_presets) != 32:
+        print(f"ERROR: Expected 32 presets, found {len(all_packed_presets)}.")
         return False
 
-    bank_data_4096 = b"".join(all_packed_patches)
+    bank_data_4096 = b"".join(all_packed_presets)
     if len(bank_data_4096) != 4096:
         print(f"ERROR: Concatenated data length {len(bank_data_4096)} != 4096.")
         return False
@@ -893,9 +893,9 @@ def create_bank(bankfile: str, patchfiles: Optional[str] = None,
 
     # 7. Final Report
     print("\nBank creation summary:")
-    print(f"  Total patches in bank: 32")
-    print(f"  - Patches from files: {file_patches_count}")
-    print(f"  - Patches from database: {db_patches_count}")
-    print(f"  - INIT patches added: {num_init_patches}")
+    print(f"  Total presets in bank: 32")
+    print(f"  - presets from files: {file_presets_count}")
+    print(f"  - presets from database: {db_presets_count}")
+    print(f"  - INIT presets added: {num_init_presets}")
     print("\nBank creation process completed.")
     return True

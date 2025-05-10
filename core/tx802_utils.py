@@ -1173,7 +1173,7 @@ def send_button_sequence(sequence, device_id=1, delay=0.1, output_port=None, ver
     return success
 
 
-# Patch, bank and performance bank functions
+# Preset, bank and performance bank functions
 ##################################################
 def validate_and_send(filename, port, stopafter=None):
     """
@@ -1412,7 +1412,7 @@ def validate_and_send(filename, port, stopafter=None):
 
 def send_bank(sysex_file=None, device_id=1, output_port=None, stopafter=None):
     """
-    Main function for sending a (partial) patchbank to the TX802
+    Main function for sending a (partial) presetbank to the TX802
 
     Args:
         sysex_file: Path to the .syx file to send (optional)
@@ -1659,12 +1659,12 @@ def send_performance(sysex_file=None, device_id=1, output_port=None):
     return transfer_success
 
 
-def send_patch_to_buffer(sysex_data, device_id=1, output_port=None):
+def send_preset_to_buffer(sysex_data, device_id=1, output_port=None):
     """
-    Sends a single voice patch to the TX802's Voice Edit Buffer.
+    Sends a single voice preset to the TX802's Voice Edit Buffer.
 
     Args:
-        sysex_data: The complete SysEx data (163 bytes) for a single voice patch
+        sysex_data: The complete SysEx data (163 bytes) for a single voice preset
         device_id: MIDI device ID (1-16)
         output_port: MIDI output port (can be a port name, an open port object, or None)
 

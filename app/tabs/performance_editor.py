@@ -12,7 +12,7 @@ import app.state as state
 _config_dirty = False
 _config_save_timer = None
 
-voice_dropdowns = []
+preset_dropdowns = []
 components_to_refresh = []  # Will be populated in setup_tab
 
 def schedule_debounced_config_save(current_tg_states):
@@ -91,14 +91,14 @@ def on_off_to_bool(val: str) -> int:
 
 # --- Gradio Tab Setup Functions ---
 def setup_tab():
-    global voice_dropdowns, components_to_refresh
-    voice_dropdowns = []
+    global preset_dropdowns, components_to_refresh
+    preset_dropdowns = []
 
     # state.init_tx802_performance_state()
-    patch_bank_state = gr.State(state.PATCH_BANK)
+    preset_bank_state = gr.State(state.PRESET_BANK)
 
     col_widths = {
-        "TG": 50, "Link": 70, "Voice": 160,
+        "TG": 50, "Link": 70, "Preset": 160,
         "Receive": 90, "Low": 80, "High": 80,
         "Detune": 70, "Shift": 70, "Volume": 80,
         "Output": 80, "Damp": 80
@@ -112,7 +112,7 @@ def setup_tab():
     columns = [
         ("TG", col_widths["TG"]),
         ("Link", col_widths["Link"]),
-        ("Voice", col_widths["Voice"]),
+        ("Preset", col_widths["Preset"]),
         ("Receive", col_widths["Receive"]),
         ("Low", col_widths["Low"]),
         ("High", col_widths["High"]),
@@ -124,7 +124,7 @@ def setup_tab():
     ]
 
     header_labels = {
-        "TG": "#", "Link": "TG", "Voice": "Patch",
+        "TG": "#", "Link": "TG", "Preset": "Preset",
         "Receive": "Chan", "Low": "Low", "High": "High", "Detune": "Det",
         "Shift": "Shift", "Volume": "Vol", "Output": "Out", "Damp": "Damp"
     }
@@ -151,12 +151,12 @@ def setup_tab():
                                 )
                                 all_interactive_inputs.append(elem)
 
-                            elif col_name == "Voice":
-                                # Patch dropdown: display the patch name, return device code "I01"–"I32"
+                            elif col_name == "Preset":
+                                # Preset dropdown: display the preset name, return device code "I01"–"I32"
                                 # Build choices as (label, value) pairs
                                 preset_choices = [
-                                    (patch_name, f"I{slot:02d}")
-                                    for patch_name, slot in state.PATCH_BANK
+                                    (preset_name, f"I{slot:02d}")
+                                    for preset_name, slot in state.PRESET_BANK
                                 ]
                                 # Default is whatever PRESET the TG currently has
                                 default_val = state.tg_states[i + 1]["PRESET"]
@@ -168,7 +168,7 @@ def setup_tab():
                                     container=False
                                 )
                                 all_interactive_inputs.append(elem)
-                                voice_dropdowns.append(elem)
+                                preset_dropdowns.append(elem)
 
                             elif col_name == "Receive":
                                 # MIDI receive channel dropdown: 1–16 or Omni
@@ -272,8 +272,8 @@ def setup_tab():
                                 )
                                 all_interactive_inputs.append(elem)
 
-    # Update the components_to_refresh with the voice_dropdowns
-    components_to_refresh = voice_dropdowns
+    # Update the components_to_refresh with the preset_dropdowns
+    components_to_refresh = preset_dropdowns
 
     with gr.Row():
         output_display = gr.Textbox(label="Action", interactive=False, scale=5)
@@ -293,7 +293,7 @@ def setup_tab():
         "FDAMP"         # EG Forced Damp On/Off
     ]
 
-    def handle_single_change(changed_value, index, current_patch_bank):
+    def handle_single_change(changed_value, index, current_preset_bank):
         """
         Handles a change in a single UI element and sends the corresponding
         SysEx message to the TX802.
@@ -350,8 +350,8 @@ def setup_tab():
     for idx, element in enumerate(all_interactive_inputs):
         element.change(
             fn=handle_single_change,  # Pass the function directly
-            # Pass the element's value, its index, and the current patch bank state
-            inputs=[element, gr.State(idx), patch_bank_state],
+            # Pass the element's value, its index, and the current preset bank state
+            inputs=[element, gr.State(idx), preset_bank_state],
             outputs=[output_display, save_status_display] # Update the status textbox
         )
 
@@ -364,20 +364,20 @@ def refresh_tab():
 
     # Rebuild the (label, value) pairs exactly as in setup_tab
     preset_choices = [
-        (patch_name, f"I{slot:02d}")
-        for patch_name, slot in state.PATCH_BANK
+        (preset_name, f"I{slot:02d}")
+        for preset_name, slot in state.PRESET_BANK
     ]
 
     updates = []
-    for i in range(len(voice_dropdowns)):
+    for i in range(len(preset_dropdowns)):
         default_preset = state.tg_states[i + 1]["PRESET"]
         updates.append(
             gr.update(choices=preset_choices, value=default_preset)
         )
 
-    # Check if we're specifically returning from patch_browser
-    if state.previous_tab == "Patch Browser":
-        # print("PERFORMANCE EDITOR - Returning from Patch Browser, restoring performance state:")
+    # Check if we're specifically returning from preset_browser
+    if state.previous_tab == "Preset Browser":
+        # print("PERFORMANCE EDITOR - Returning from preset Browser, restoring performance state:")
         button_commands = {}
 
         # Only proceed if we have a valid MIDI output
@@ -419,7 +419,7 @@ def refresh_tab():
             except Exception as e:
                 print(f"  • Error sending commands: {e}")
     else:
-        # Normal refresh (not from Patch Browser)
+        # Normal refresh (not from Preset Browser)
         pass
 
     return updates

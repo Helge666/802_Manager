@@ -12,10 +12,10 @@ from core.dx7_utils import create_bank, connect_to_db
 
 
 def main():
-    parser = argparse.ArgumentParser(description="DX7 Surprise Me - Create a bank with randomly selected patches")
-    parser.add_argument("--db", required=True, help="Path to SQLite database containing patches")
+    parser = argparse.ArgumentParser(description="DX7 Surprise Me - Create a bank with randomly selected presets")
+    parser.add_argument("--db", required=True, help="Path to SQLite database containing presets")
     parser.add_argument("--bankfile", required=True, help="Path to the output .syx bank file to be created")
-    parser.add_argument("--count", type=int, default=32, help="Number of patches to include (default: 32)")
+    parser.add_argument("--count", type=int, default=32, help="Number of presets to include (default: 32)")
 
     args = parser.parse_args()
 
@@ -31,32 +31,32 @@ def main():
         return False
 
     try:
-        # Get count of available patches
+        # Get count of available presets
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM patches")
-        total_patches = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM presets")
+        total_presets = cursor.fetchone()[0]
 
-        if total_patches == 0:
-            print("Error: No patches found in the database.")
+        if total_presets == 0:
+            print("Error: No presets found in the database.")
             return False
 
-        num_patches = min(args.count, 32)  # Ensure we don't exceed 32 patches
+        num_presets = min(args.count, 32)  # Ensure we don't exceed 32 presets
 
-        if total_patches < num_patches:
-            print(f"Warning: Only {total_patches} patches available in database, requested {num_patches}.")
-            num_patches = total_patches
+        if total_presets < num_presets:
+            print(f"Warning: Only {total_presets} presets available in database, requested {num_presets}.")
+            num_presets = total_presets
 
-        # Get random patch IDs
-        cursor.execute("SELECT id FROM patches ORDER BY RANDOM() LIMIT ?", (num_patches,))
+        # Get random preset IDs
+        cursor.execute("SELECT id FROM presets ORDER BY RANDOM() LIMIT ?", (num_presets,))
         selected_ids = [row[0] for row in cursor.fetchall()]
 
-        print(f"Selected {len(selected_ids)} random patches.")
+        print(f"Selected {len(selected_ids)} random presets.")
 
         # Convert to comma-separated string of IDs
-        patch_ids_str = ",".join(str(id) for id in selected_ids)
+        preset_ids_str = ",".join(str(id) for id in selected_ids)
 
         # Create the bank file
-        success = create_bank(args.bankfile, None, args.db, patch_ids_str)
+        success = create_bank(args.bankfile, None, args.db, preset_ids_str)
 
         if success:
             print(f"Successfully created surprise bank file: {args.bankfile}")

@@ -13,14 +13,14 @@ if project_root not in sys.path:
 # Module Name should be 'tabs.filename' (without .py)
 TABS_CONFIG = [
     ("Settings", "app.tabs.settings"),
-    ("Patch Browser", "app.tabs.patch_browser"),
+    ("Preset Browser", "app.tabs.preset_browser"),
     ("Perform Edit", "app.tabs.performance_editor"),
     ("TX802 Panel", "app.tabs.front_panel"),
 ]
 
 # --- Build the Gradio Interface ---
 with gr.Blocks() as tx802_manager:
-    gr.Markdown("# YAMAHA TX-802 Performance and Patch Manager")
+    gr.Markdown("# YAMAHA TX-802 Performance and Preset Manager")
 
     # Dynamically create tabs based on the configuration
     for tab_title, module_name in TABS_CONFIG:

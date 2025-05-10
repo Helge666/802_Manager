@@ -14,10 +14,10 @@ def main():
     parser = argparse.ArgumentParser(description="Yamaha DX7 SysEx Bank Extractor")
 
     parser.add_argument("--bankfile", required=True, help="Path to the input DX7 bank file (.syx)")
-    parser.add_argument("--folder", help="Folder where individual patch files will be saved")
-    parser.add_argument("--db", help="Path to SQLite database for storing patches")
-    parser.add_argument("--report", action="store_true", help="Generate patch parameter reports")
-    parser.add_argument("--origin", help="Origin (e.g. creator or website) to store with patches in the database")
+    parser.add_argument("--folder", help="Folder where individual preset files will be saved")
+    parser.add_argument("--db", help="Path to SQLite database for storing presetss")
+    parser.add_argument("--report", action="store_true", help="Generate preset parameter reports")
+    parser.add_argument("--origin", help="Origin (e.g. creator or website) to store with presets in the database")
 
     args = parser.parse_args()
 

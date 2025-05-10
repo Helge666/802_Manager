@@ -7,8 +7,8 @@ This module makes shared states available globally for all
 tabs, even when they change later on due to user interaction
 '''
 
-# PATCH_BANK = [("Init", i) for i in range(1, 33)]
-PATCH_BANK = [(f"[I{i:02d}] Init", i) for i in range(1, 33)]
+# PRESET_BANK = [("Init", i) for i in range(1, 33)]
+PRESET_BANK = [(f"[I{i:02d}] Init", i) for i in range(1, 33)]
 
 midi_input = None
 midi_output = None
@@ -124,15 +124,15 @@ def list_input_ports():
     return get_input_names()
 
 
-def update_patch_bank(slot, patch_name):
-    """Update a specific slot in the global patch bank.
+def update_preset_bank(slot, preset_name):
+    """Update a specific slot in the global preset bank.
 
     Args:
         slot (int): Slot number (0-31)
-        patch_name (str): Name of the patch (or "Init" for empty slots)
+        preset_name (str): Name of the preset (or "Init" for empty slots)
     """
     if 0 <= slot < 32:
-        PATCH_BANK[slot] = (patch_name, slot + 1)
+        PRESET_BANK[slot] = (preset_name, slot + 1)
 
 
 # Define a default TG state as a reusable constant ---

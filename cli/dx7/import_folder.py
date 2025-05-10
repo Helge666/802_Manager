@@ -17,9 +17,9 @@ def process_folder(base_folder, db_path, output_folder=None, report=False, dry_r
 
     Args:
         base_folder (str): The base folder to search for .syx files
-        db_path (str): Path to the SQLite database for storing patches
-        output_folder (str, optional): Folder where individual patch files will be saved
-        report (bool): Generate patch parameter reports
+        db_path (str): Path to the SQLite database for storing presets
+        output_folder (str, optional): Folder where individual preset files will be saved
+        report (bool): Generate preset parameter reports
         dry_run (bool): If True, don't actually import to database, just print what would happen
 
     Returns:
@@ -75,9 +75,9 @@ def main():
 
     parser.add_argument("--folder", default="C:\\",
                         help="Base folder containing subfolders with .syx files")
-    parser.add_argument("--db", required=True, help="Path to SQLite database for storing patches")
-    parser.add_argument("--output", help="Folder where individual patch files will be saved")
-    parser.add_argument("--report", action="store_true", help="Generate patch parameter reports")
+    parser.add_argument("--db", required=True, help="Path to SQLite database for storing presets")
+    parser.add_argument("--output", help="Folder where individual preset files will be saved")
+    parser.add_argument("--report", action="store_true", help="Generate preset parameter reports")
     parser.add_argument("--dry-run", action="store_true",
                         help="Don't actually import to database, just print what would happen")
 
