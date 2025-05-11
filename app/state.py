@@ -138,8 +138,8 @@ def update_preset_bank(slot, preset_name):
 # Define a default TG state as a reusable constant ---
 # These values are set by the unit as Init Preset
 DEFAULT_TG_STATE = {
-    "TG": "Off",        # Tone Generator off (unlinked) – all TGs default to Off
-    "PRESET": "I01",    # Device memory location I01–I32 (currently)
+    "TG": "Off",        # Tone Generator off (linked) – all TGs default to Off
+    "PRESET": "I01",    # Device memory location I01–I32
     "RXCH": "1",        # MIDI receive channel 1–16
     "NOTELOW": "C-2",   # Lower split point
     "NOTEHIGH": "G8",   # Upper split point

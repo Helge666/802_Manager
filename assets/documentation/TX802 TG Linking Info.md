@@ -17,4 +17,4 @@
 
     Caveats:
     - TG1 values are accepted, but have no function, since TG1 is the anchor TG and can't be linked.
-    - Setting a VNUM (a Patch) for a linked TG will also unlink the TG.
+    - Setting a VNUM (a Patch) for a linked TG will also unlink (switch on) the TG.
