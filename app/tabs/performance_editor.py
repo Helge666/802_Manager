@@ -301,12 +301,10 @@ def setup_tab():
         status_message = ""
         save_status = "No save"
 
-        tg = index // interactive_cols_per_tg + 1  # Tone Generator number (1-8) [cite: 74]
-        param_pos = index % interactive_cols_per_tg  # Parameter index within the TG's elements [cite: 74]
-
-        param_name = param_names_per_tg[param_pos]  # Get the base parameter name (e.g., "VNUM", "RXCH") [cite: 74]
-
-        key = f"{param_name}{tg}"  # Construct the full parameter key (e.g., "VNUM1", "RXCH1") [cite: 74]
+        tg = index // interactive_cols_per_tg + 1  # Tone Generator number (1-8)
+        param_pos = index % interactive_cols_per_tg  # Parameter index within the TG's elements
+        param_name = param_names_per_tg[param_pos]  # Get the base parameter name
+        key = f"{param_name}{tg}"  # Construct the full parameter key
 
         # --- Directly forward the user-facing value to edit_performance ---
         internal_val = changed_value
@@ -320,6 +318,16 @@ def setup_tab():
                 return status_message
 
             try:
+                # Special handling for PRESET changes on TGs that are Off
+                tg_should_be_off = False
+                extra_commands = {}
+
+                # If we're changing a PRESET and the TG is Off, we'll need to turn it back Off
+                if param_name == "PRESET" and state.tg_states[tg]["TG"] == "Off":
+                    tg_should_be_off = True
+                    extra_commands = {f"TG{tg}": "Off"}
+
+                # First send the main parameter change
                 success = edit_performance(
                     port=state.midi_output,
                     device_id=1,
@@ -327,6 +335,16 @@ def setup_tab():
                     play_notes=False,
                     **{key: internal_val}
                 )
+
+                # If it's a PRESET change that turned an Off TG On, turn it back Off
+                if success and tg_should_be_off:
+                    success = edit_performance(
+                        port=state.midi_output,
+                        device_id=1,
+                        delay_after=0.02,
+                        play_notes=False,
+                        **extra_commands
+                    )
 
                 if success:
                     status_message = lcd_display()

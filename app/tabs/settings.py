@@ -139,10 +139,6 @@ def setup_tab():
                 tg = int(tg_str)
                 should_be_off = params['TG'] == "Off"
 
-                # Debug
-                if should_be_off:
-                    print(f"##########DEBUG: TG{tg} SHOULD BE Off")
-
                 # Update the state for all parameters
                 for param_name, value in params.items():
                     state_manager.update_tg_state(tg, param_name, value)
@@ -157,9 +153,6 @@ def setup_tab():
 
             # Merge commands, ensuring Off commands run last
             button_commands = {**regular_commands, **final_off_commands}
-
-            # Debug final command dictionary
-            print(f"########## button_commands: {button_commands}")
 
             # Call the performance editor with unpacked parameters
             edit_performance(
