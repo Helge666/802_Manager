@@ -143,8 +143,13 @@ def update_preset_bank(slot, preset_name):
     """
     global PRESET_BANK, _preset_bank_save_timer, _preset_bank_dirty
 
+    # Remove any existing prefix if present
+    clean_name = preset_name
+    if preset_name.startswith("[I") and "] " in preset_name:
+        clean_name = preset_name.split("] ", 1)[1]
+
     if 0 <= slot < 32:
-        PRESET_BANK[slot] = (preset_name, slot + 1)
+        PRESET_BANK[slot] = (clean_name, slot + 1)
         _preset_bank_dirty = True
 
         # Schedule a debounced save

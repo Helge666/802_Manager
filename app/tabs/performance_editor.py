@@ -153,7 +153,7 @@ def setup_tab():
                                 # Preset dropdown: display the preset name, return device code "I01"–"I32"
                                 # Build choices as (label, value) pairs
                                 preset_choices = [
-                                    (preset_name, f"I{slot:02d}")
+                                    (f"[I{slot:02d}] {preset_name}", f"I{slot:02d}")
                                     for preset_name, slot in state.PRESET_BANK
                                 ]
                                 # Default is whatever PRESET the TG currently has
@@ -362,7 +362,7 @@ def refresh_tab():
 
     # Rebuild the (label, value) pairs exactly as in setup_tab
     preset_choices = [
-        (preset_name, f"I{slot:02d}")
+        (f"[I{slot:02d}] {preset_name}", f"I{slot:02d}")
         for preset_name, slot in state.PRESET_BANK
     ]
 

@@ -130,22 +130,36 @@ def setup_tab():
 
         # Now check if we have saved performance parameters
         if "performance_params" in config:
-            # Load the saved parameters into our state
+            # Segregate commands into regular commands and final TG On/Off commands
+            regular_commands = {}
+            final_off_commands = {}
+
+            # First pass: Load all saved parameters into our state
             for tg_str, params in config["performance_params"].items():
+                tg = int(tg_str)
+                should_be_off = params['TG'] == "Off"
 
-                # Only when On to prevent VNUM from flipping Off → On
-                if params['TG'] == "On":
-                    tg = int(tg_str)
-                    tg_line = [f"TG{tg}:"]
-                    readable_sequence = []
+                # Debug
+                if should_be_off:
+                    print(f"##########DEBUG: TG{tg} SHOULD BE Off")
 
-                    for param_name, value in params.items():
-                        tg_line.append(f"{param_name}{tg}={value}")
-                        state_manager.update_tg_state(tg, param_name, value)
-                        button_commands[f"{param_name}{tg}"] = value
+                # Update the state for all parameters
+                for param_name, value in params.items():
+                    state_manager.update_tg_state(tg, param_name, value)
 
-                    readable_sequence.append(" → ".join(tg_line))
-                    print("\n".join(readable_sequence))
+                    # For TGs that should be Off, don't send their TG status yet
+                    if param_name == "TG" and should_be_off:
+                        # Save to send later as the very last command for this TG
+                        final_off_commands[f"TG{tg}"] = "Off"
+                    else:
+                        # Add all other parameters to regular commands
+                        regular_commands[f"{param_name}{tg}"] = value
+
+            # Merge commands, ensuring Off commands run last
+            button_commands = {**regular_commands, **final_off_commands}
+
+            # Debug final command dictionary
+            print(f"########## button_commands: {button_commands}")
 
             # Call the performance editor with unpacked parameters
             edit_performance(
