@@ -153,8 +153,8 @@ def setup_tab():
                                     container=False
                                 )
 
-                                if is_interactive:
-                                    all_interactive_inputs.append(elem)
+                                # Always add to all_interactive_inputs, even if not interactive
+                                all_interactive_inputs.append(elem)
 
                             elif col_name == "Preset":
                                 # Preset dropdown: display the preset name, return device code "I01"–"I32"

@@ -1,5 +1,5 @@
 # 🎛️ 802 Manager
-v1.2.3 | 2025-05-11 | Helge T. Kautz
+v1.2.4 | 2025-05-11 | Helge T. Kautz
 
 ### Design Philosophy
 802 Manager was designed for studio use. It treats the TX802 purely as an external sound module and doesn't use any permanent on-device storage or RAM cartridges. Instead, all preset and performance data and the required state handling will be done exclusively via the 802 Manager.
