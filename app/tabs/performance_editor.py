@@ -138,16 +138,23 @@ def setup_tab():
                                 gr.Textbox(value=str(i + 1), show_label=False, interactive=False, container=False)
 
                             elif col_name == "Link":
+
                                 # TG On/Off dropdown
                                 default_val = state.tg_states[i + 1]["TG"]
+
+                                # Make TG1's dropdown non-interactive
+                                is_interactive = (i + 1) != 1  # False for TG1, True for TG2-TG8
+
                                 elem = gr.Dropdown(
                                     choices=TG_CHOICES,
                                     value=default_val,
                                     show_label=False,
-                                    interactive=True,
+                                    interactive=is_interactive,  # Non-interactive for TG1
                                     container=False
                                 )
-                                all_interactive_inputs.append(elem)
+
+                                if is_interactive:
+                                    all_interactive_inputs.append(elem)
 
                             elif col_name == "Preset":
                                 # Preset dropdown: display the preset name, return device code "I01"–"I32"
