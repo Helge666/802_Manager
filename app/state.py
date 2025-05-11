@@ -2,18 +2,28 @@ from mido import open_input, open_output, get_input_names, get_output_names
 import threading
 import time
 
+from core.tx802_utils import load_config, save_config
+
 '''
 This module makes shared states available globally for all
 tabs, even when they change later on due to user interaction
 '''
 
-# PRESET_BANK = [("Init", i) for i in range(1, 33)]
-PRESET_BANK = [(f"[I{i:02d}] Init", i) for i in range(1, 33)]
+# Load preset bank from config if present
+config = load_config()
+saved = config.get("preset_bank")
+if isinstance(saved, list) and len(saved) == 32:
+    PRESET_BANK = [(name, idx + 1) for idx, name in enumerate(saved)]
+else:
+    PRESET_BANK = [(f"[I{i:02d}] Init", i) for i in range(1, 33)]
+
 
 midi_input = None
 midi_output = None
 midi_forward_thread = None
 _stop_forwarding = threading.Event()
+_preset_bank_save_timer = None
+_preset_bank_dirty = False
 
 
 def _midi_forwarding_worker():
@@ -131,8 +141,35 @@ def update_preset_bank(slot, preset_name):
         slot (int): Slot number (0-31)
         preset_name (str): Name of the preset (or "Init" for empty slots)
     """
+    global PRESET_BANK, _preset_bank_save_timer, _preset_bank_dirty
+
     if 0 <= slot < 32:
         PRESET_BANK[slot] = (preset_name, slot + 1)
+        _preset_bank_dirty = True
+
+        # Schedule a debounced save
+        def _save_preset_bank_later():
+            global _preset_bank_save_timer, _preset_bank_dirty
+
+            if _preset_bank_dirty:
+                # Extract just the preset names to save in config
+                preset_names = [name for name, _ in PRESET_BANK]
+
+                config = load_config()
+                config["preset_bank"] = preset_names
+                save_config(config)
+                _preset_bank_dirty = False
+                print("Saved preset bank to config")
+
+            _preset_bank_save_timer = None
+
+        # Cancel any pending save
+        if _preset_bank_save_timer:
+            _preset_bank_save_timer.cancel()
+
+        # Schedule a new save with 2-second delay
+        _preset_bank_save_timer = threading.Timer(2.0, _save_preset_bank_later)
+        _preset_bank_save_timer.start()
 
 
 # Define a default TG state as a reusable constant ---

@@ -65,8 +65,6 @@ NOTE_CHOICES = [
     if not (octave == 8 and _NOTE_NAME_BASE.index(note) > 7)
 ]
 
-
-
 def note_name_to_midi(note_name: str) -> int:
     try:
         return MIDI_NOTES.index(note_name)
