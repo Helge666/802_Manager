@@ -1,0 +1,40 @@
+# Build directories
+/build*/
+/cmake-build-*/
+/dist/
+
+# IDE
+/.idea/
+/.vscode/
+.DS_Store
+*.user
+*.swp
+
+# JUCE fetched by CMake
+/JUCE/
+
+# Compiled objects and binaries
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+*.exe
+
+# CMake generated
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+Testing/
+CTestTestfile.cmake
+
+# Logs and temp
+*.log
+*.tmp
+
+# Recovery scripts (not part of the project)
+recover*.py

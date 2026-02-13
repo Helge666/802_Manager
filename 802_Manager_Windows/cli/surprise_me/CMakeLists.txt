@@ -1,0 +1,5 @@
+add_executable(surprise_me main.cpp)
+target_link_libraries(surprise_me PRIVATE core storage_db juce::juce_core juce::juce_events)
+if (MINGW)
+    target_link_options(surprise_me PRIVATE -static-libstdc++ -static-libgcc -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic)
+endif()

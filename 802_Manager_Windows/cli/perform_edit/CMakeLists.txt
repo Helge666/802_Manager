@@ -1,0 +1,5 @@
+add_executable(perform_edit main.cpp)
+target_link_libraries(perform_edit PRIVATE core juce::juce_core juce::juce_audio_devices juce::juce_events)
+if (MINGW)
+    target_link_options(perform_edit PRIVATE -static-libstdc++ -static-libgcc -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic)
+endif()

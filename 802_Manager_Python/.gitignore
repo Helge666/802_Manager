@@ -1,0 +1,24 @@
+# Byte-compiled / cached
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# OS/IDE junk
+.DS_Store
+Thumbs.db
+*.log
+
+# Editor configs
+.vscode/
+.idea/
+
+# Project-specific
+
+
+*.ipynb
+.ipynb_checkpoints/
