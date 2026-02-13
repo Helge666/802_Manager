@@ -1,0 +1,5 @@
+add_executable(bank_create main.cpp)
+target_link_libraries(bank_create PRIVATE core storage_db juce::juce_core juce::juce_events)
+if (MINGW)
+    target_link_options(bank_create PRIVATE -static-libstdc++ -static-libgcc -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic)
+endif()

@@ -1,0 +1,5 @@
+add_executable(send_preset_bank main.cpp)
+target_link_libraries(send_preset_bank PRIVATE core juce::juce_core juce::juce_audio_devices juce::juce_events)
+if (MINGW)
+    target_link_options(send_preset_bank PRIVATE -static-libstdc++ -static-libgcc -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic)
+endif()

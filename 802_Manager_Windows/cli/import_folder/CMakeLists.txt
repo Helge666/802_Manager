@@ -1,0 +1,5 @@
+add_executable(import_folder main.cpp)
+target_link_libraries(import_folder PRIVATE core storage_db juce::juce_core juce::juce_events)
+if (MINGW)
+    target_link_options(import_folder PRIVATE -static-libstdc++ -static-libgcc -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic)
+endif()

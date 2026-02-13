@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+env/
+venv/
+*.ipynb
+.ipynb_checkpoints/
+
+# C++ build
+build*/
+cmake-build-*/
+dist/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+*.exe
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.user
+*.swp
+
+# Logs and temp
+*.log
+*.tmp
+
+# Claude Code local settings
+.claude/
