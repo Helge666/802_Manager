@@ -8,6 +8,8 @@ Since I'm not a certified Windows Developer, the App will open the usual "Unknow
 
 Download from here: https://github.com/Helge666/802_Manager/releases/
 
+Future releases will include extended patch database management: importing, exporting, remixing, renaming, validating, etc. The code already exists, but right now, you'll have to use the included CLI tools for these tasks. They don't hurt! Otherwise you'll be stuck with the included 30.000+ default patches. Hardly a limitation, I'd say.
+
 ### Design Philosophy
 802 Manager was designed for studio use. It treats the TX802 purely as an external sound module and doesn't use any permanent on-device storage or RAM cartridges. Instead, all preset and performance data and the required state handling will be done exclusively via the 802 Manager.
 ### No MIDI return required
