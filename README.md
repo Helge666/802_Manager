@@ -1,6 +1,6 @@
 # 🎛️ 802 Manager
 **Python:** v1.2.4 | 2025-05-11 | Helge T. Kautz  
-**Windows:** v0.1.0 | 2026-2-13 | Helge T. Kautz
+**Windows:** v0.1.0 | 2026-02-13 | Helge T. Kautz
 
 ### First Windows release
 I don't speak c++, the Windows port was done riding shotgun with Claude. Could still have bugs.
