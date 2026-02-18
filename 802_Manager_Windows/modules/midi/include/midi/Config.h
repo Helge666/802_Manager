@@ -35,6 +35,7 @@ struct ConfigState {
     int deviceId { 1 };             // 1..16
     int sysexChunkBytes { 256 };    // pacing chunk size
     int sysexInterChunkMs { 20 };   // pacing delay between chunks
+    int patchesToSend { 8 };        // how many voices to send (1,8,16,32)
 
     // Performance state for TG1-TG8  (Python-compatible format)
     core::TgState tg[8];            // tg[0] = TG1 .. tg[7] = TG8
@@ -74,6 +75,8 @@ public:
             state.sysexChunkBytes = (int) obj->getProperty("sysex_chunk_bytes");
         if (obj->hasProperty("sysex_interchunk_ms"))
             state.sysexInterChunkMs = (int) obj->getProperty("sysex_interchunk_ms");
+        if (obj->hasProperty("patches_to_send"))
+            state.patchesToSend = (int) obj->getProperty("patches_to_send");
 
         // Load performance params – Python-compatible format:
         // "performance_params": { "1": { "TG": "Off", "PRESET": "I01", ... }, ... }
@@ -132,6 +135,7 @@ public:
         obj->setProperty("device_id", state.deviceId);
         obj->setProperty("sysex_chunk_bytes", state.sysexChunkBytes);
         obj->setProperty("sysex_interchunk_ms", state.sysexInterChunkMs);
+        obj->setProperty("patches_to_send", state.patchesToSend);
 
         // Save performance params – Python-compatible format
         if (state.hasPerformanceParams)

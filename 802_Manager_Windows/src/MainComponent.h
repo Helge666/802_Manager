@@ -235,6 +235,8 @@ private:
     juce::Slider chunkSlider { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
     juce::Label delayLabel { {}, "Inter-chunk delay (ms):" };
     juce::Slider delaySlider { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
+    juce::Label patchesLabel { {}, "Patches to send:" };
+    juce::ComboBox patchesCombo;
     juce::StringArray presetNames;
     std::unique_ptr<juce::FileChooser> fileChooser;
     std::unique_ptr<midi::MidiSender> midiSender;

@@ -358,6 +358,8 @@ MainComponent::MainComponent()
     settingsTab.addAndMakeVisible(chunkSlider);
     settingsTab.addAndMakeVisible(delayLabel);
     settingsTab.addAndMakeVisible(delaySlider);
+    settingsTab.addAndMakeVisible(patchesLabel);
+    settingsTab.addAndMakeVisible(patchesCombo);
 
     midi::StartupLog::write("CTOR: Wiring callbacks");
     // ── Wiring ──
@@ -554,6 +556,26 @@ MainComponent::MainComponent()
         delaySlider.setRange(1, 500, 1);
         delaySlider.setValue(cfg.sysexInterChunkMs, juce::dontSendNotification);
     }
+    {
+        patchesCombo.addItem("1",  1);
+        patchesCombo.addItem("8",  2);
+        patchesCombo.addItem("16", 3);
+        patchesCombo.addItem("32", 4);
+        midi::ConfigState cfg; midi::Config::load(cfg);
+        int p = cfg.patchesToSend;
+        int comboId = (p == 1) ? 1 : (p == 16) ? 3 : (p == 32) ? 4 : 2; // default to 8
+        patchesCombo.setSelectedId(comboId, juce::dontSendNotification);
+    }
+    patchesCombo.onChange = [this]{
+        const int map[] = { 1, 8, 16, 32 };
+        int idx = patchesCombo.getSelectedId() - 1;
+        if (idx >= 0 && idx < 4)
+        {
+            midi::ConfigState cfg; midi::Config::load(cfg);
+            cfg.patchesToSend = map[idx];
+            midi::Config::save(cfg);
+        }
+    };
     devIdSlider.onValueChange = [this]{
         midi::ConfigState cfg; midi::Config::load(cfg); cfg.deviceId = (int) devIdSlider.getValue(); midi::Config::save(cfg);
     };
@@ -774,6 +796,8 @@ void MainComponent::resized()
         { auto r = st.removeFromTop(rowH); devIdLabel.setBounds(r.removeFromLeft(100)); devIdSlider.setBounds(r.removeFromLeft(140)); r.removeFromLeft(gap*3); chunkLabel.setBounds(r.removeFromLeft(150)); chunkSlider.setBounds(r.removeFromLeft(180)); }
         st.removeFromTop(gap);
         { auto r = st.removeFromTop(rowH); r.removeFromLeft(100+140+gap*3); delayLabel.setBounds(r.removeFromLeft(150)); delaySlider.setBounds(r.removeFromLeft(180)); }
+        st.removeFromTop(gap);
+        { auto r = st.removeFromTop(rowH); patchesLabel.setBounds(r.removeFromLeft(100)); patchesCombo.setBounds(r.removeFromLeft(140)); }
     }
 }
 
@@ -1105,6 +1129,10 @@ void MainComponent::sendBankToDevice()
     midi::Tx802HighLevel::sendMacroByName(*midiSender, "PRTCT_OFF", deviceId);
     juce::Thread::sleep(120);
 
+    midi::ConfigState cfgPts; midi::Config::load(cfgPts);
+    const int patchCount = juce::jlimit(1, 32, cfgPts.patchesToSend);
+    const bool isPartial = patchCount < 32;
+
     juce::MemoryBlock packed4096(32 * 128);
     auto* out = static_cast<juce::uint8*>(packed4096.getData());
     const auto initV128 = getInitVoice128();
@@ -1151,6 +1179,17 @@ void MainComponent::sendBankToDevice()
                             juce::dontSendNotification);
     }
 
+    if (isPartial)
+    {
+        // Partial transfer: send header + N voices + 4 bytes into next voice, no checksum/F7
+        const int cutoffIndex = 6 + (patchCount * 128) + 4;
+        juce::MemoryBlock truncated(bank.getData(), (size_t) cutoffIndex);
+        DBG("Partial transfer: sending first " + juce::String(patchCount) + " voices (" + juce::String(cutoffIndex) + " bytes)");
+        midi::ConfigState cfgP; midi::Config::load(cfgP);
+        if (! midiSender->sendSysexPaced(truncated, cfgP.sysexChunkBytes, cfgP.sysexInterChunkMs))
+            midiSender->sendSysex(truncated);
+    }
+    else
     {
         midi::ConfigState cfgP; midi::Config::load(cfgP);
         if (! midiSender->sendSysexPaced(bank, cfgP.sysexChunkBytes, cfgP.sysexInterChunkMs))
@@ -1169,7 +1208,9 @@ void MainComponent::sendBankToDevice()
         midi::Config::save(cfgS);
         refreshPerfPresetDropdowns();
     }
-    statusLabel.setText("Sent 32-voice bank (PRTCT_OFF, VOICE_SELECT, +/-)", juce::dontSendNotification);
+    statusLabel.setText(isPartial ? "Sent first " + juce::String(patchCount) + " voices (partial transfer)"
+                                  : "Sent 32-voice bank (PRTCT_OFF, VOICE_SELECT, +/-)",
+                        juce::dontSendNotification);
 }
 
 // ── Helpers ──
