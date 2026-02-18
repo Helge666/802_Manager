@@ -30,6 +30,12 @@ add_subdirectory(cli/bank_create)
 add_subdirectory(cli/surprise_me)
 add_subdirectory(cli/import_folder)
 
+juce_add_binary_data(GuiAssets SOURCES
+    ../assets/gui/TX802-Panel-Right.png
+    ../assets/gui/TX802-Panel-Left.png
+    ../assets/gui/LED-On.png
+)
+
 juce_add_gui_app(802_Manager_Windows_App
     PRODUCT_NAME "802_Manager"
     COMPANY_NAME "Helge"
@@ -42,6 +48,7 @@ target_sources(802_Manager_Windows_App PRIVATE
 )
 
 target_link_libraries(802_Manager_Windows_App PRIVATE
+    GuiAssets
     juce::juce_gui_basics
     juce::juce_graphics
     juce::juce_core

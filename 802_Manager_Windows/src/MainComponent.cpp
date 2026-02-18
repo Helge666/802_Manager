@@ -3,6 +3,8 @@
 #include "midi/MidiSender.h"
 #include "midi/Tx802HighLevel.h"
 #include "midi/Config.h"
+#include "PanelLayout.h"
+#include <BinaryData.h>
 
 using core::Dx7Utils;
 
@@ -303,39 +305,33 @@ MainComponent::MainComponent()
     refreshPerfPresetDropdowns();
 
     midi::StartupLog::write("CTOR: Front Panel tab setup");
-    // ── Front Panel tab ──
-    frontPanelTab.addAndMakeVisible(fpPerformSelect);
-    frontPanelTab.addAndMakeVisible(fpVoiceSelect);
-    frontPanelTab.addAndMakeVisible(fpSystemSetup);
-    frontPanelTab.addAndMakeVisible(fpUtility);
-    frontPanelTab.addAndMakeVisible(fpPerformEdit);
-    frontPanelTab.addAndMakeVisible(fpVoiceEditI);
-    frontPanelTab.addAndMakeVisible(fpVoiceEditII);
-    frontPanelTab.addAndMakeVisible(fpStore);
-    for (int i = 1; i <= 8; ++i)
-    {
-        auto* tg = fpTgButtons.add(new juce::TextButton("TG" + juce::String(i)));
-        frontPanelTab.addAndMakeVisible(tg);
-    }
-    frontPanelTab.addAndMakeVisible(fpYes);
-    frontPanelTab.addAndMakeVisible(fpNo);
-    frontPanelTab.addAndMakeVisible(fpInt);
-    frontPanelTab.addAndMakeVisible(fpCrt);
-    frontPanelTab.addAndMakeVisible(fpReset);
-    frontPanelTab.addAndMakeVisible(fpEnter);
-    frontPanelTab.addAndMakeVisible(fpLower);
-    frontPanelTab.addAndMakeVisible(fpUpper);
-    frontPanelTab.addAndMakeVisible(fpDash);
-    frontPanelTab.addAndMakeVisible(fpPrtctOff);
-    frontPanelTab.addAndMakeVisible(fpPrtctOn);
-    frontPanelTab.addAndMakeVisible(fpPos1);
-    frontPanelTab.addAndMakeVisible(fpPlayNotes);
-    frontPanelTab.addAndMakeVisible(frontStatus);
+    // ── Front Panel tab — TX802-Panel-Right.png as background ──
+    frontPanelTab.image = juce::ImageCache::getFromMemory(
+        BinaryData::TX802PanelRight_png, BinaryData::TX802PanelRight_pngSize);
+    // Mode select buttons: non-momentary radio group
+    fpModeGroup[0] = &fpPerformSelect;
+    fpModeGroup[1] = &fpVoiceSelect;
+    fpModeGroup[2] = &fpSystemSetup;
+    fpModeGroup[3] = &fpUtility;
+    fpModeGroup[4] = &fpPerformEdit;
+    fpModeGroup[5] = &fpVoiceEditI;
+    fpModeGroup[6] = &fpVoiceEditII;
+    fpModeGroup[7] = &fpStore;
+    for (auto* b : fpModeGroup) { b->momentary = false; frontPanelTab.addAndMakeVisible(b); }
+    // Momentary buttons
+    for (auto* b : { &fpYes, &fpNo, &fpInt, &fpCrt, &fpEnter, &fpDash })
+        frontPanelTab.addAndMakeVisible(b);
+    // Number buttons 0..9
     for (int i = 0; i <= 9; ++i)
-    {
-        auto* nb = fpNumButtons.add(new juce::TextButton(juce::String(i)));
-        frontPanelTab.addAndMakeVisible(nb);
-    }
+        frontPanelTab.addAndMakeVisible(fpNumButtons.add(new PanelButton()));
+    frontPanelTab.addAndMakeVisible(frontStatus);
+    // TODO: TG1-TG8 belong to TX802-Panel-Left.png — add and make visible when implementing left panel
+    for (int i = 1; i <= 8; ++i)
+        fpTgButtons.add(new juce::TextButton("TG" + juce::String(i)));
+    // TODO: RESET — no physical panel button; implement as software action later
+    // TODO: lowercase / UPPERCASE — text-entry helpers, no physical buttons; implement later
+    // TODO: PRTCT OFF / PRTCT ON / POS1 — software macros; implement later
+    // TODO: Play Notes — software test utility; implement later
 
     midi::StartupLog::write("CTOR: Settings tab setup");
     // ── Settings tab ──
@@ -392,35 +388,29 @@ MainComponent::MainComponent()
         else
             midiStatusBox.setText("Open a MIDI output first");
     };
-    fpPerformSelect.onClick = [sendBtn]{ sendBtn("PERFORM_SELECT"); };
-    fpVoiceSelect.onClick   = [sendBtn]{ sendBtn("VOICE_SELECT"); };
-    fpSystemSetup.onClick   = [sendBtn]{ sendBtn("SYSTEM_SETUP"); };
-    fpUtility.onClick       = [sendBtn]{ sendBtn("UTILITY"); };
-    fpPerformEdit.onClick   = [sendBtn]{ sendBtn("PERFORM_EDIT"); };
-    fpVoiceEditI.onClick    = [sendBtn]{ sendBtn("VOICE_EDIT_I"); };
-    fpVoiceEditII.onClick   = [sendBtn]{ sendBtn("VOICE_EDIT_II"); };
-    fpStore.onClick         = [sendBtn]{ sendBtn("STORE"); };
-    fpYes.onClick           = [sendBtn]{ sendBtn("YES"); };
-    fpNo.onClick            = [sendBtn]{ sendBtn("NO"); };
-    fpInt.onClick           = [sendBtn]{ sendBtn("INT"); };
-    fpCrt.onClick           = [sendBtn]{ sendBtn("CRT"); };
-    fpReset.onClick         = [sendBtn]{ sendBtn("RESET"); };
-    for (int i = 0; i < fpTgButtons.size(); ++i)
+    // Radio group helper: deactivates all mode buttons except the one just pressed
+    // (the pressed button is already active=true from PanelButton::mouseDown)
+    auto deactExcept = [this](PanelButton* keep)
     {
-        fpTgButtons[i]->onClick = [this, sendBtn, i]
-        {
-            sendBtn("TG" + juce::String(i + 1));
-            frontStatus.setText("Sent TG" + juce::String(i + 1), juce::dontSendNotification);
-        };
-    }
-    auto sendAndStatus = [this, sendBtn](const juce::String& name, const juce::String& label)
-    {
-        sendBtn(name); frontStatus.setText("Sent " + label, juce::dontSendNotification);
+        for (auto* b : fpModeGroup) if (b != keep) b->setActive(false);
     };
-    fpEnter.onClick  = [sendAndStatus]{ sendAndStatus("ENTER", "ENTER"); };
-    fpLower.onClick  = [sendAndStatus]{ sendAndStatus("LOWERCASE", "lowercase"); };
-    fpUpper.onClick  = [sendAndStatus]{ sendAndStatus("UPPERCASE", "UPPERCASE"); };
-    fpDash.onClick   = [sendAndStatus]{ sendAndStatus("DASH", "- / . ,"); };
+    // Mode select buttons (radio)
+    fpPerformSelect.onClick = [this, sendBtn, deactExcept]{ deactExcept(&fpPerformSelect); sendBtn("PERFORM_SELECT"); };
+    fpVoiceSelect.onClick   = [this, sendBtn, deactExcept]{ deactExcept(&fpVoiceSelect);   sendBtn("VOICE_SELECT"); };
+    fpSystemSetup.onClick   = [this, sendBtn, deactExcept]{ deactExcept(&fpSystemSetup);   sendBtn("SYSTEM_SETUP"); };
+    fpUtility.onClick       = [this, sendBtn, deactExcept]{ deactExcept(&fpUtility);       sendBtn("UTILITY"); };
+    fpPerformEdit.onClick   = [this, sendBtn, deactExcept]{ deactExcept(&fpPerformEdit);   sendBtn("PERFORM_EDIT"); };
+    fpVoiceEditI.onClick    = [this, sendBtn, deactExcept]{ deactExcept(&fpVoiceEditI);    sendBtn("VOICE_EDIT_I"); };
+    fpVoiceEditII.onClick   = [this, sendBtn, deactExcept]{ deactExcept(&fpVoiceEditII);   sendBtn("VOICE_EDIT_II"); };
+    fpStore.onClick         = [this, sendBtn, deactExcept]{ deactExcept(&fpStore);         sendBtn("STORE"); };
+    // Momentary buttons
+    fpYes.onClick   = [sendBtn]{ sendBtn("YES"); };
+    fpNo.onClick    = [sendBtn]{ sendBtn("NO"); };
+    fpInt.onClick   = [sendBtn]{ sendBtn("INT"); };
+    fpCrt.onClick   = [sendBtn]{ sendBtn("CRT"); };
+    fpEnter.onClick = [sendBtn]{ sendBtn("ENTER"); };
+    fpDash.onClick  = [sendBtn]{ sendBtn("DASH"); };
+    // Number buttons
     for (int i = 0; i <= 9; ++i)
     {
         fpNumButtons[i]->onClick = [this, sendBtn, i]
@@ -429,24 +419,40 @@ MainComponent::MainComponent()
             frontStatus.setText("Sent " + juce::String(i), juce::dontSendNotification);
         };
     }
-    fpPrtctOff.onClick = [this, sendBtn]
+    // TODO: wire TG1-TG8 onClick when implementing left panel tab
+    for (int i = 0; i < fpTgButtons.size(); ++i)
+    {
+        fpTgButtons[i]->onClick = [this, sendBtn, i]
+        {
+            sendBtn("TG" + juce::String(i + 1));
+            frontStatus.setText("Sent TG" + juce::String(i + 1), juce::dontSendNotification);
+        };
+    }
+    // TODO: RESET — no physical panel button; wire as software action later
+    fpReset.onClick = [sendBtn]{ sendBtn("RESET"); };
+    // TODO: lowercase / UPPERCASE — text-entry helpers; wire to physical buttons or menu later
+    fpLower.onClick  = [sendBtn]{ sendBtn("LOWERCASE"); };
+    fpUpper.onClick  = [sendBtn]{ sendBtn("UPPERCASE"); };
+    // TODO: PRTCT OFF / PRTCT ON / POS1 — software macros; expose via menu or toolbar later
+    fpPrtctOff.onClick = [this]
     {
         if (midiSender && midiSender->isOpen())
             midi::Tx802HighLevel::sendMacroByName(*midiSender, "PRTCT_OFF", 1);
         frontStatus.setText("Sent PRTCT OFF", juce::dontSendNotification);
     };
-    fpPrtctOn.onClick = [this, sendBtn]
+    fpPrtctOn.onClick = [this]
     {
         if (midiSender && midiSender->isOpen())
             midi::Tx802HighLevel::sendMacroByName(*midiSender, "PRTCT_ON", 1);
         frontStatus.setText("Sent PRTCT ON", juce::dontSendNotification);
     };
-    fpPos1.onClick = [this, sendBtn]
+    fpPos1.onClick = [this]
     {
         if (midiSender && midiSender->isOpen())
             midi::Tx802HighLevel::sendMacroByName(*midiSender, "POS1", 1);
         frontStatus.setText("Sent POS1", juce::dontSendNotification);
     };
+    // TODO: Play Notes — software test utility; expose via toolbar or menu later
     fpPlayNotes.onClick = [this]
     {
         if (midiSender && midiSender->isOpen())
@@ -624,7 +630,11 @@ MainComponent::MainComponent()
     tabs.addTab("Settings",             juce::Colours::darkgrey, &settingsTab,            false);
 
     midi::StartupLog::write("CTOR: setSize + refreshPage");
-    setSize(1000, 964);
+    {
+        auto* disp = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay();
+        float scale = disp ? (float)disp->scale : 1.0f;
+        setSize(juce::roundToInt(PanelLayout::kPanelWidth / scale), 964);
+    }
     refreshPage();
     midi::StartupLog::write("=== MainComponent CTOR END ===");
 }
@@ -741,58 +751,44 @@ void MainComponent::resized()
         perfStatus.setBounds(pe.removeFromTop(24));
     }
 
-    // ── Front Panel layout ──
+    // ── Front Panel layout — fixed-size panel image with PanelButton hit-rects ──
     {
-        auto fp = frontPanelTab.getLocalBounds().reduced(12);
-        const int bw = 140, bh = 30, gap = 6;
-        auto row1 = fp.removeFromTop(bh); fp.removeFromTop(gap);
-        fpPerformSelect.setBounds(row1.removeFromLeft(bw)); row1.removeFromLeft(gap);
-        fpVoiceSelect.setBounds(row1.removeFromLeft(bw)); row1.removeFromLeft(gap);
-        fpSystemSetup.setBounds(row1.removeFromLeft(bw)); row1.removeFromLeft(gap);
-        fpUtility.setBounds(row1.removeFromLeft(bw));
+        using namespace PanelLayout;
+        auto* disp = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay();
+        float scale = disp ? (float)disp->scale : 1.0f;
+        auto place = [scale](juce::Component& c, const Rect& r) {
+            c.setBounds(juce::roundToInt(r.x / scale), juce::roundToInt(r.y / scale),
+                        juce::roundToInt(r.w / scale), juce::roundToInt(r.h / scale));
+        };
 
-        auto row2 = fp.removeFromTop(bh); fp.removeFromTop(gap);
-        fpPerformEdit.setBounds(row2.removeFromLeft(bw)); row2.removeFromLeft(gap);
-        fpVoiceEditI.setBounds(row2.removeFromLeft(bw)); row2.removeFromLeft(gap);
-        fpVoiceEditII.setBounds(row2.removeFromLeft(bw)); row2.removeFromLeft(gap);
-        fpStore.setBounds(row2.removeFromLeft(bw));
+        // Mode select buttons (radio)
+        place(fpPerformSelect, Right::performSelect);
+        place(fpVoiceSelect,   Right::voiceSelect);
+        place(fpSystemSetup,   Right::systemSetup);
+        place(fpUtility,       Right::utility);
+        place(fpPerformEdit,   Right::performEdit);
+        place(fpVoiceEditI,    Right::voiceEditI);
+        place(fpVoiceEditII,   Right::voiceEditII);
+        place(fpStore,         Right::storeCompare);
 
-        auto row3 = fp.removeFromTop(bh); fp.removeFromTop(gap);
-        for (int i = 0; i < fpTgButtons.size(); ++i)
-        {
-            fpTgButtons[i]->setBounds(row3.removeFromLeft(70));
-            row3.removeFromLeft(4);
-        }
+        // Momentary buttons
+        place(fpYes,   Right::onYes);
+        place(fpNo,    Right::offNo);
+        place(fpInt,   Right::intBtn);
+        place(fpCrt,   Right::crtBtn);
+        place(fpEnter, Right::enterSpace);
+        place(fpDash,  Right::minus);
 
-        auto row4 = fp.removeFromTop(bh); fp.removeFromTop(gap);
-        fpYes.setBounds(row4.removeFromLeft(bw)); row4.removeFromLeft(gap);
-        fpNo.setBounds(row4.removeFromLeft(bw)); row4.removeFromLeft(gap);
-        fpInt.setBounds(row4.removeFromLeft(bw)); row4.removeFromLeft(gap);
-        fpCrt.setBounds(row4.removeFromLeft(bw));
+        // Number buttons 0..9
+        for (int i = 0; i <= 9; ++i)
+            place(*fpNumButtons[i], Right::numPad[i]);
 
-        auto row5 = fp.removeFromTop(bh); fp.removeFromTop(gap);
-        for (int i = 0; i < fpNumButtons.size(); ++i)
-        {
-            fpNumButtons[i]->setBounds(row5.removeFromLeft(55));
-            row5.removeFromLeft(4);
-        }
+        // Status label sits just below the panel image
+        frontStatus.setBounds(0, juce::roundToInt(kPanelHeight / scale) + 4,
+                              juce::roundToInt(kPanelWidth / scale), 22);
 
-        auto row6 = fp.removeFromTop(bh); fp.removeFromTop(gap);
-        fpEnter.setBounds(row6.removeFromLeft(bw)); row6.removeFromLeft(gap);
-        fpLower.setBounds(row6.removeFromLeft(bw)); row6.removeFromLeft(gap);
-        fpUpper.setBounds(row6.removeFromLeft(bw)); row6.removeFromLeft(gap);
-        fpDash.setBounds(row6.removeFromLeft(bw));
-
-        auto row7 = fp.removeFromTop(bh); fp.removeFromTop(gap);
-        fpPrtctOff.setBounds(row7.removeFromLeft(bw)); row7.removeFromLeft(gap);
-        fpPrtctOn.setBounds(row7.removeFromLeft(bw)); row7.removeFromLeft(gap);
-        fpPos1.setBounds(row7.removeFromLeft(bw)); row7.removeFromLeft(gap);
-        fpReset.setBounds(row7.removeFromLeft(bw));
-
-        auto row8 = fp.removeFromTop(bh); fp.removeFromTop(gap);
-        fpPlayNotes.setBounds(row8.removeFromLeft(bw));
-
-        frontStatus.setBounds(fp.removeFromTop(60));
+        // TODO: TG1-TG8 — left panel; position when implementing left panel tab
+        // TODO: RESET, lowercase, UPPERCASE, PRTCT OFF/ON, POS1, Play Notes — add to toolbar/menu later
     }
 
     // ── Settings tab layout ──
@@ -1233,6 +1229,11 @@ void MainComponent::sendBankToDevice()
 }
 
 // ── Helpers ──
+
+void MainComponent::deactivateModeButtons()
+{
+    for (auto* b : fpModeGroup) b->setActive(false);
+}
 
 void MainComponent::openDx7Bank()
 {

@@ -90,6 +90,53 @@ private:
         bool selected { false };
     };
 
+    // Custom tab component that draws the panel image as its background
+    class FrontPanelTab : public juce::Component
+    {
+    public:
+        void paint(juce::Graphics& g) override
+        {
+            g.fillAll(juce::Colours::black);
+            if (image.isValid())
+            {
+                float scale = g.getInternalContext().getPhysicalPixelScaleFactor();
+                g.drawImage(image, 0, 0,
+                            juce::roundToInt(image.getWidth()  / scale),
+                            juce::roundToInt(image.getHeight() / scale),
+                            0, 0, image.getWidth(), image.getHeight());
+            }
+        }
+        juce::Image image;
+    };
+
+    // Transparent hit-rect button overlaid on the panel image.
+    // momentary=true  → darkens while held, clears on release
+    // momentary=false → darkens on press, stays dark (radio group behavior)
+    class PanelButton : public juce::Component
+    {
+    public:
+        bool momentary { true };
+        bool active    { false };
+        std::function<void()> onClick;
+
+        void setActive(bool a) { active = a; repaint(); }
+
+        void paint(juce::Graphics& g) override
+        {
+            if (active)
+                g.fillAll(juce::Colours::black.withAlpha(0.38f));
+        }
+        void mouseDown(const juce::MouseEvent&) override
+        {
+            active = true; repaint();
+            if (onClick) onClick();
+        }
+        void mouseUp(const juce::MouseEvent&) override
+        {
+            if (momentary) { active = false; repaint(); }
+        }
+    };
+
     // (Deprecated) Per-row component approach removed; using painted arrows + click handling instead
 
     void openDx7Bank();
@@ -190,32 +237,30 @@ private:
     juce::ComboBox  perfTgDamp[8];
     juce::Label     perfStatus;
 
-    // Front Panel tab (placeholder)
-    juce::Component frontPanelTab;
-    juce::Label frontTodo { {}, "TODO: Implement Front Panel" };
-    juce::TextButton fpPerformSelect { "PERFORM SELECT" };
-    juce::TextButton fpVoiceSelect { "VOICE SELECT" };
-    juce::TextButton fpSystemSetup { "SYSTEM SETUP" };
-    juce::TextButton fpUtility { "UTILITY" };
-    juce::TextButton fpPerformEdit { "PERFORM EDIT" };
-    juce::TextButton fpVoiceEditI { "VOICE EDIT I" };
-    juce::TextButton fpVoiceEditII { "VOICE EDIT II" };
-    juce::TextButton fpStore { "STORE/COMPARE" };
-    juce::TextButton fpYes { "ON / YES (+1)" };
-    juce::TextButton fpNo { "OFF / NO (-1)" };
+    // Front Panel tab — maps to TX802-Panel-Right.png
+    // See PanelLayout::Right for pixel positions of physical buttons.
+    FrontPanelTab frontPanelTab;
+    void deactivateModeButtons();
+    // Mode select buttons (radio: stays dark until another is pressed)
+    PanelButton fpPerformSelect, fpVoiceSelect, fpSystemSetup, fpUtility;
+    PanelButton fpPerformEdit, fpVoiceEditI, fpVoiceEditII, fpStore;
+    PanelButton* fpModeGroup[8]; // radio group — pointers to the 8 mode buttons above
+    // Momentary buttons (dark only while held, physical "-" key = PanelLayout::Right::minus)
+    PanelButton fpYes, fpNo, fpInt, fpCrt, fpEnter, fpDash;
+    juce::OwnedArray<PanelButton> fpNumButtons; // 0..9
+    // TODO: TG1-TG8 buttons belong to TX802-Panel-Left.png — implement with left panel later
+    juce::OwnedArray<juce::TextButton> fpTgButtons;
+    // TODO: RESET — no dedicated physical button; implement as software action later
     juce::TextButton fpReset { "RESET" };
-    juce::TextButton fpInt { "INT ←" };
-    juce::TextButton fpCrt { "CRT →" };
-    juce::TextButton fpEnter { "ENTER / SPACE" };
+    // TODO: lowercase / UPPERCASE — text-entry mode helpers, no physical buttons; implement later
     juce::TextButton fpLower { "lowercase" };
     juce::TextButton fpUpper { "UPPERCASE" };
-    juce::TextButton fpDash  { "- / . ," };
-    juce::OwnedArray<juce::TextButton> fpNumButtons; // 0..9
-    juce::OwnedArray<juce::TextButton> fpTgButtons; // TG1..TG8
+    // TODO: PRTCT OFF / PRTCT ON / POS1 — software macros; implement later
     juce::TextButton fpPrtctOff { "PRTCT OFF" };
     juce::TextButton fpPrtctOn  { "PRTCT ON" };
     juce::TextButton fpPos1     { "POS1" };
-    juce::TextButton fpPlayNotes{ "Play Notes" };
+    // TODO: Play Notes — software test utility; implement later
+    juce::TextButton fpPlayNotes { "Play Notes" };
     juce::Label frontStatus;
 
     // Settings tab (MIDI + actions)
