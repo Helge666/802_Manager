@@ -34,18 +34,25 @@ private:
         MainComponent& owner;
     };
 
-    // Model for the 32-slot bank list on the right
+    // Model for the bank list on the right (variable slot count)
     class BankModel : public juce::ListBoxModel
     {
     public:
         BankModel() = default;
-        void initOwner(MainComponent* o)
+        void initOwner(MainComponent* o, int slots = 8)
         {
             owner = o;
+            numRows = slots;
             slotNames.clear();
-            for (int i = 0; i < 32; ++i) slotNames.add("empty");
+            for (int i = 0; i < numRows; ++i) slotNames.add("empty");
         }
-        int getNumRows() override { return 32; }
+        int getNumRows() override { return numRows; }
+        void setNumSlots(int n)
+        {
+            numRows = n;
+            while (slotNames.size() < numRows) slotNames.add("empty");
+            while (slotNames.size() > numRows) slotNames.remove(slotNames.size() - 1);
+        }
         void paintListBoxItem(int, juce::Graphics&, int, int, bool) override {}
         juce::Component* refreshComponentForRow(int rowNumber, bool isRowSelected, juce::Component* existing) override;
         void setSlotName(int index, const juce::String& name)
@@ -57,6 +64,7 @@ private:
             return juce::isPositiveAndBelow(index, slotNames.size()) ? slotNames[index] : juce::String();
         }
     private:
+        int numRows { 8 };
         juce::StringArray slotNames;
         MainComponent* owner { nullptr };
     };
@@ -143,7 +151,9 @@ private:
     int colRatingWidth { 36 };
     bool showCommentsColumn { true };
     float avgCharWidthPx { 8.0f }; // measured at runtime using JUCE Font
-    juce::Array<int> bankSlotIds; // 32 entries, 0 = empty
+    int visibleSlots { 8 };
+    juce::Label bankNote { {}, "NOTE: change # of patches to send in Settings" };
+    juce::Array<int> bankSlotIds; // visibleSlots entries, 0 = empty
     int dragStartRow { -1 };
     bool dragging { false };
 
