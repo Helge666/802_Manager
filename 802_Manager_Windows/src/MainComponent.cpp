@@ -96,13 +96,23 @@ MainComponent::MainComponent()
     presetBrowserTab.addAndMakeVisible(initBankButton);
     presetBrowserTab.addAndMakeVisible(randomizeBankButton);
     presetBrowserTab.addAndMakeVisible(sendBankButton);
+    bankNote.setFont(juce::Font(11.0f));
+    bankNote.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+    presetBrowserTab.addAndMakeVisible(bankNote);
 
     initBankButton.onClick = [this]{ initBank(); };
     randomizeBankButton.onClick = [this]{ randomizeBank(); };
     sendBankButton.onClick = [this]{ sendBankToDevice(); };
-    bankSlotIds.resize(32);
-    for (int i = 0; i < 32; ++i) bankSlotIds.set(i, 0);
-    bankModel.initOwner(this);
+
+    // Read patchesToSend from config to set visible bank slots
+    {
+        midi::ConfigState cfgSlots; midi::Config::load(cfgSlots);
+        int p = cfgSlots.patchesToSend;
+        if (p == 1 || p == 8 || p == 16 || p == 32) visibleSlots = p; else visibleSlots = 8;
+    }
+    bankSlotIds.resize(visibleSlots);
+    for (int i = 0; i < visibleSlots; ++i) bankSlotIds.set(i, 0);
+    bankModel.initOwner(this, visibleSlots);
     bankList.setModel(&bankModel);
     bankList.setMultipleSelectionEnabled(false);
     bankList.setRowHeight(22);
@@ -574,6 +584,13 @@ MainComponent::MainComponent()
             midi::ConfigState cfg; midi::Config::load(cfg);
             cfg.patchesToSend = map[idx];
             midi::Config::save(cfg);
+
+            visibleSlots = map[idx];
+            bankSlotIds.resize(visibleSlots);
+            for (int i = bankSlotIds.size(); i < visibleSlots; ++i) bankSlotIds.set(i, 0);
+            bankModel.setNumSlots(visibleSlots);
+            bankList.updateContent();
+            bankList.repaint();
         }
     };
     devIdSlider.onValueChange = [this]{
@@ -681,6 +698,8 @@ void MainComponent::resized()
         auto leftArea = pb.removeFromLeft(leftWidth);
         presetList.setBounds(leftArea);
         pb.removeFromLeft(12);
+        auto bankNoteArea = pb.removeFromBottom(18);
+        bankNote.setBounds(bankNoteArea);
         bankList.setBounds(pb);
     }
 
@@ -1075,7 +1094,7 @@ void MainComponent::moveBankSlot(int fromIndex, int toIndex)
 
 void MainComponent::initBank()
 {
-    for (int i = 0; i < 32; ++i)
+    for (int i = 0; i < visibleSlots; ++i)
     {
         bankSlotIds.set(i, 0);
         bankModel.setSlotName(i, "empty");
@@ -1101,7 +1120,7 @@ void MainComponent::randomizeBank()
         indices.swap(i, j);
     }
 
-    for (int slot = 0; slot < 32; ++slot)
+    for (int slot = 0; slot < visibleSlots; ++slot)
     {
         if (slot < indices.size())
         {
@@ -1117,7 +1136,7 @@ void MainComponent::randomizeBank()
     }
     bankList.updateContent();
     bankList.repaint();
-    statusLabel.setText("Randomized " + juce::String(juce::jmin(32, all.size())) + " presets", juce::dontSendNotification);
+    statusLabel.setText("Randomized " + juce::String(juce::jmin(visibleSlots, all.size())) + " presets", juce::dontSendNotification);
 }
 
 void MainComponent::sendBankToDevice()
