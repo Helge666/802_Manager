@@ -106,15 +106,22 @@ MainComponent::MainComponent()
     randomizeBankButton.onClick = [this]{ randomizeBank(); };
     sendBankButton.onClick = [this]{ sendBankToDevice(); };
 
-    // Read patchesToSend from config to set visible bank slots
+    // Read patchesToSend and preset bank names from config
+    midi::ConfigState cfgSlots; midi::Config::load(cfgSlots);
     {
-        midi::ConfigState cfgSlots; midi::Config::load(cfgSlots);
         int p = cfgSlots.patchesToSend;
         if (p == 1 || p == 8 || p == 16 || p == 32) visibleSlots = p; else visibleSlots = 8;
     }
     bankSlotIds.resize(visibleSlots);
     for (int i = 0; i < visibleSlots; ++i) bankSlotIds.set(i, 0);
     bankModel.initOwner(this, visibleSlots);
+    // Pre-populate bank slot names from last-sent preset bank
+    for (int i = 0; i < visibleSlots && i < cfgSlots.presetBankNames.size(); ++i)
+    {
+        const auto& name = cfgSlots.presetBankNames[i];
+        if (name.isNotEmpty() && name != "empty")
+            bankModel.setSlotName(i, name);
+    }
     bankList.setModel(&bankModel);
     bankList.setMultipleSelectionEnabled(false);
     bankList.setRowHeight(22);
