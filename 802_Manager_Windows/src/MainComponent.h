@@ -175,7 +175,7 @@ private:
     BankModel bankModel;
     juce::ListBox bankList { "Bank", &bankModel };
     juce::Label bankHeader { {}, "" };
-    juce::TextButton initBankButton { "Init" };
+    juce::TextButton initBankButton { "Clear" };
     juce::TextButton randomizeBankButton { "Random" };
     juce::TextButton sendBankButton { "Send" };
     juce::Label statusLabel;
