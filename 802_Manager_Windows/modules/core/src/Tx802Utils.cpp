@@ -164,7 +164,8 @@ juce::StringArray getStartupSequence()
         "PRTCT_OFF",                                     // Disable memory protection (SYSTEM_SETUP -> TG8 -> NO)
         "UTILITY", "TG5", "YES", "YES", "WAIT",          // Init Performance: links TG2-TG8 to TG1
         "SYSTEM_SETUP", "TG4", "TG4", "MINUS_ONE",       // Set Voice Bank receive to I1-I32
-        "VOICE_SELECT"                                   // Return LCD to main voice select menu
+        "VOICE_SELECT",                                  // Return LCD to main voice select menu
+        "TG1"                                            // Init Performance leaves TG1 always On; toggle Off for known state
     };
 }
 

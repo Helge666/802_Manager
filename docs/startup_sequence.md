@@ -49,6 +49,7 @@ Defined in `core::getStartupSequence()` (`Tx802Utils.cpp`):
 | 8 | `WAIT` | Sleep 1 second |
 | 9–12 | `SYSTEM_SETUP` → `TG4` → `TG4` → `MINUS_ONE` | Set Voice Bank receive to I1–I32 |
 | 13 | `VOICE_SELECT` | Return LCD to main voice select menu |
+| 14 | `TG1` | Remote Switch code 89 — toggles TG1 Off for known state (Init Performance always leaves TG1 On) |
 
 Between each button press: **100 ms delay** (`kButtonDelayMs`).
 

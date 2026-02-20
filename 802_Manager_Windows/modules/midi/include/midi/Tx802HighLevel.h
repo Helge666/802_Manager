@@ -229,11 +229,23 @@ public:
 
         // Second pass: send LINK=0 for TGs that are OFF (matching Python's final_off_commands).
         // This extinguishes TG LEDs that were temporarily activated by their VNUM send above.
+        // TG1 is handled last: linking any TG2-8 to TG1 (first pass) forces TG1 On on the
+        // device, so TG1's Remote Switch toggle must fire after all other sends to stay Off.
+        bool tg1NeedsOff = false;
         for (int tg : offTGs)
         {
+            if (tg == 1) { tg1NeedsOff = true; continue; } // handled last
             StartupLog::write("  Sending LINK OFF for TG" + juce::String(tg));
             sendParam(tg - 1, 0);
             if (ledCallback) ledCallback(tg, false);
+        }
+        if (tg1NeedsOff)
+        {
+            StartupLog::write("  TG1 Off: sending Remote Switch code 89 (fires last, after all TG2-8 links)");
+            sendParam(0, 0); // no effect on device, but consistent with other Off TGs
+            sendButtonByName(sender, "TG1", deviceId1to16);
+            juce::Thread::sleep(kButtonDelayMs);
+            if (ledCallback) ledCallback(1, false);
         }
 
         StartupLog::write("=== restorePerformanceParams END ===");
