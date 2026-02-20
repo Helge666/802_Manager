@@ -656,11 +656,12 @@ MainComponent::MainComponent()
 
     midi::StartupLog::write("CTOR: Adding tabs");
     // ── Tabs ──
-    tabs.addTab("Preset Browser",       juce::Colours::darkgrey, &presetBrowserTab,       false);
-    tabs.addTab("Performance Editor",   juce::Colours::darkgrey, &performanceEditorTab,   false);
     tabs.addTab("Left Panel",           juce::Colours::darkgrey, &leftPanelTab,           false);
     tabs.addTab("Right Panel",          juce::Colours::darkgrey, &frontPanelTab,          false);
+    tabs.addTab("Performance Editor",   juce::Colours::darkgrey, &performanceEditorTab,   false);
+    tabs.addTab("Preset Browser",       juce::Colours::darkgrey, &presetBrowserTab,       false);
     tabs.addTab("Settings",             juce::Colours::darkgrey, &settingsTab,            false);
+    tabs.setCurrentTabIndex(0);
 
     midi::StartupLog::write("CTOR: setSize + refreshPage");
     {
