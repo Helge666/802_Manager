@@ -319,6 +319,18 @@ MainComponent::MainComponent()
     // ── Left Panel tab — TX802-Panel-Left.png as background ──
     leftPanelTab.image = juce::ImageCache::getFromMemory(
         BinaryData::TX802PanelLeft_png, BinaryData::TX802PanelLeft_pngSize);
+
+    // TG LED overlays — LED-On.png placed over each TG button, hidden by default
+    {
+        auto ledImg = juce::ImageCache::getFromMemory(BinaryData::LEDOn_png, BinaryData::LEDOn_pngSize);
+        for (int i = 0; i < 8; ++i)
+        {
+            tgLedOverlay[i].setImage(ledImg, juce::RectanglePlacement::stretchToFit);
+            tgLedOverlay[i].setVisible(false);
+            tgLedOverlay[i].setInterceptsMouseClicks(false, false);
+            leftPanelTab.addChildComponent(tgLedOverlay[i]);
+        }
+    }
     // Mode select buttons: non-momentary radio group
     fpModeGroup[0] = &fpPerformSelect;
     fpModeGroup[1] = &fpVoiceSelect;
@@ -801,6 +813,22 @@ void MainComponent::resized()
 
         // TODO: TG1-TG8 — left panel; position when implementing left panel tab
         // TODO: RESET, lowercase, UPPERCASE, PRTCT OFF/ON, POS1, Play Notes — add to toolbar/menu later
+    }
+
+    // ── Left Panel LED overlay layout ──
+    {
+        using namespace PanelLayout;
+        auto* disp = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay();
+        float scale = disp ? (float)disp->scale : 1.0f;
+        for (int i = 0; i < 8; ++i)
+        {
+            const auto& pt = Left::tgLed[i];
+            tgLedOverlay[i].setBounds(
+                juce::roundToInt(pt.x / scale),
+                juce::roundToInt(pt.y / scale),
+                juce::roundToInt(kLedWidth  / scale),
+                juce::roundToInt(kLedHeight / scale));
+        }
     }
 
     // ── Settings tab layout ──
@@ -1445,6 +1473,13 @@ void MainComponent::updatePerfControlsFromConfig()
         perfTgDamp[i].setSelectedId(midi::fdampFromString(t.fDamp) == 0 ? 1 : 2, juce::dontSendNotification);
     }
     refreshPerfPresetDropdowns();
+}
+
+void MainComponent::setTgLed(int tg1to8, bool on)
+{
+    const int i = tg1to8 - 1;
+    if (juce::isPositiveAndBelow(i, 8))
+        tgLedOverlay[i].setVisible(on);
 }
 
 void MainComponent::refreshPerfPresetDropdowns()
