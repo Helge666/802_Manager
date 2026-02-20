@@ -312,9 +312,13 @@ MainComponent::MainComponent()
     refreshPerfPresetDropdowns();
 
     midi::StartupLog::write("CTOR: Front Panel tab setup");
-    // ── Front Panel tab — TX802-Panel-Right.png as background ──
+    // ── Right Panel tab — TX802-Panel-Right.png as background ──
     frontPanelTab.image = juce::ImageCache::getFromMemory(
         BinaryData::TX802PanelRight_png, BinaryData::TX802PanelRight_pngSize);
+
+    // ── Left Panel tab — TX802-Panel-Left.png as background ──
+    leftPanelTab.image = juce::ImageCache::getFromMemory(
+        BinaryData::TX802PanelLeft_png, BinaryData::TX802PanelLeft_pngSize);
     // Mode select buttons: non-momentary radio group
     fpModeGroup[0] = &fpPerformSelect;
     fpModeGroup[1] = &fpVoiceSelect;
@@ -633,7 +637,8 @@ MainComponent::MainComponent()
     // ── Tabs ──
     tabs.addTab("Preset Browser",       juce::Colours::darkgrey, &presetBrowserTab,       false);
     tabs.addTab("Performance Editor",   juce::Colours::darkgrey, &performanceEditorTab,   false);
-    tabs.addTab("Front Panel",          juce::Colours::darkgrey, &frontPanelTab,          false);
+    tabs.addTab("Left Panel",           juce::Colours::darkgrey, &leftPanelTab,           false);
+    tabs.addTab("Right Panel",          juce::Colours::darkgrey, &frontPanelTab,          false);
     tabs.addTab("Settings",             juce::Colours::darkgrey, &settingsTab,            false);
 
     midi::StartupLog::write("CTOR: setSize + refreshPage");

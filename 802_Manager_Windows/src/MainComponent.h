@@ -109,6 +109,9 @@ private:
         juce::Image image;
     };
 
+    // Left panel tab — TX802-Panel-Left.png, same DPI-aware rendering as FrontPanelTab.
+    class LeftPanelTab : public FrontPanelTab {};
+
     // Transparent hit-rect button overlaid on the panel image.
     // momentary=true  → darkens while held, clears on release
     // momentary=false → darkens on press, stays dark (radio group behavior)
@@ -240,6 +243,7 @@ private:
     // Front Panel tab — maps to TX802-Panel-Right.png
     // See PanelLayout::Right for pixel positions of physical buttons.
     FrontPanelTab frontPanelTab;
+    LeftPanelTab  leftPanelTab;
     void deactivateModeButtons();
     // Mode select buttons (radio: stays dark until another is pressed)
     PanelButton fpPerformSelect, fpVoiceSelect, fpSystemSetup, fpUtility;
