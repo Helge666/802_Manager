@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <juce_core/juce_core.h>
 #include "core/Tx802Utils.h"     // All TX802 knowledge lives here
 #include "midi/MidiSender.h"
@@ -145,7 +146,8 @@ public:
     // Restore performance parameters from saved config.
     // Uses core:: conversion helpers for string-to-internal-value mapping.
     static void restorePerformanceParams(MidiSender& sender, juce::uint8 deviceId1to16,
-                                          const ConfigState& cfg)
+                                          const ConfigState& cfg,
+                                          std::function<void(int tg1to8, bool on)> ledCallback = nullptr)
     {
         StartupLog::write("=== restorePerformanceParams BEGIN ===");
 
@@ -193,8 +195,11 @@ public:
                 offTGs.add(tg);
 
             // VNUM: PRESET string -> vnum (1-based) -> internal (0-based)
+            // NOTE: Sending VNUM activates the TG on the device as a side effect,
+            // lighting its LED regardless of whether the TG is On or Off in config.
             int vnum = core::presetToVnum(t.preset);
             sendVnum(16 + (tg - 1), vnum - 1);
+            if (ledCallback) ledCallback(tg, true);
 
             // RXCH: string -> user (1-16 or 17=Omni) -> internal (user-1)
             int rxUser = core::rxchFromString(t.rxch);
@@ -222,11 +227,13 @@ public:
             sendParam(72 + (tg - 1), core::fdampFromString(t.fDamp));
         }
 
-        // Second pass: send LINK=0 for TGs that are OFF (matching Python's final_off_commands)
+        // Second pass: send LINK=0 for TGs that are OFF (matching Python's final_off_commands).
+        // This extinguishes TG LEDs that were temporarily activated by their VNUM send above.
         for (int tg : offTGs)
         {
             StartupLog::write("  Sending LINK OFF for TG" + juce::String(tg));
             sendParam(tg - 1, 0);
+            if (ledCallback) ledCallback(tg, false);
         }
 
         StartupLog::write("=== restorePerformanceParams END ===");

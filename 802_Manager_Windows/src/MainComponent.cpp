@@ -73,7 +73,7 @@ void MainComponent::StartupThread::run()
         midi::Config::save(cfg);
     }
 
-    midi::Tx802HighLevel::restorePerformanceParams(sender, (juce::uint8) deviceId, cfg);
+    midi::Tx802HighLevel::restorePerformanceParams(sender, (juce::uint8) deviceId, cfg, ledCallback);
 }
 
 MainComponent::MainComponent()
@@ -516,7 +516,10 @@ MainComponent::MainComponent()
                 if (ok)
                 {
                     midiStatusBox.setText("Sending startup sequence...");
-                    startupThread = std::make_unique<StartupThread>(*midiSender, cfg.deviceId);
+                    startupThread = std::make_unique<StartupThread>(*midiSender, cfg.deviceId,
+                    [this](int tg, bool on) {
+                        juce::MessageManager::callAsync([this, tg, on] { setTgLed(tg, on); });
+                    });
                     startupThread->startThread();
                 }
                 if (cfg.inputPort.isNotEmpty())
@@ -543,7 +546,10 @@ MainComponent::MainComponent()
         {
             if (startupThread) startupThread->stopThread(8000);
             midiStatusBox.setText("Sending startup sequence...");
-            startupThread = std::make_unique<StartupThread>(*midiSender, cfg.deviceId);
+            startupThread = std::make_unique<StartupThread>(*midiSender, cfg.deviceId,
+                    [this](int tg, bool on) {
+                        juce::MessageManager::callAsync([this, tg, on] { setTgLed(tg, on); });
+                    });
             startupThread->startThread();
         }
         if (forwardingToggle.getToggleState() && midiSender->isOpen() && midiInputCombo.getText().isNotEmpty())
@@ -639,7 +645,10 @@ MainComponent::MainComponent()
             midi::ConfigState cfg; midi::Config::load(cfg);
             if (startupThread) startupThread->stopThread(8000);
             midiStatusBox.setText("Sending startup sequence...");
-            startupThread = std::make_unique<StartupThread>(*midiSender, cfg.deviceId);
+            startupThread = std::make_unique<StartupThread>(*midiSender, cfg.deviceId,
+                    [this](int tg, bool on) {
+                        juce::MessageManager::callAsync([this, tg, on] { setTgLed(tg, on); });
+                    });
             startupThread->startThread();
         }
         else midiStatusBox.setText("Open MIDI Out first");
@@ -1438,12 +1447,24 @@ void MainComponent::sendPerfParam(int tg1to8, const juce::String& paramName, int
 
     bool ok = midiSender->sendPcedParamChange(devId, (juce::uint8) paramNum, vals);
 
-    if (paramName == "PRESET" && ! midi::tgOnFromString(cfg.tg[i].tgOnOff))
+    if (paramName == "TG")
     {
-        juce::Thread::sleep(20);
-        juce::Array<juce::uint8> offVal;
-        offVal.add(0);
-        midiSender->sendPcedParamChange(devId, (juce::uint8) i, offVal);
+        // LINK param sent — LED reflects On/Off directly
+        setTgLed(tg1to8, userValue != 0);
+    }
+    else if (paramName == "PRESET")
+    {
+        // VNUM sent — device activates TG as side effect, mirror that in the overlay
+        setTgLed(tg1to8, true);
+        if (! midi::tgOnFromString(cfg.tg[i].tgOnOff))
+        {
+            // TG is Off in config: send LINK=0 to re-silence it, then extinguish overlay
+            juce::Thread::sleep(20);
+            juce::Array<juce::uint8> offVal;
+            offVal.add(0);
+            midiSender->sendPcedParamChange(devId, (juce::uint8) i, offVal);
+            setTgLed(tg1to8, false);
+        }
     }
 
     cfg.hasPerformanceParams = true;
@@ -1479,7 +1500,10 @@ void MainComponent::setTgLed(int tg1to8, bool on)
 {
     const int i = tg1to8 - 1;
     if (juce::isPositiveAndBelow(i, 8))
+    {
         tgLedOverlay[i].setVisible(on);
+        tgLedOverlay[i].repaint();
+    }
 }
 
 void MainComponent::refreshPerfPresetDropdowns()
