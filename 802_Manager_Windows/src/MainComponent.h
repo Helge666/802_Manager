@@ -257,6 +257,9 @@ private:
     // Momentary buttons (dark only while held, physical "-" key = PanelLayout::Right::minus)
     PanelButton fpYes, fpNo, fpInt, fpCrt, fpEnter, fpDash;
     juce::OwnedArray<PanelButton> fpNumButtons; // 0..9
+    // TG1-TG8 momentary hit-rect buttons on the Left Panel tab.
+    // Clicking toggles the TG On/Off state and sends the corresponding SysEx.
+    juce::OwnedArray<PanelButton> lpTgButtons;
     // TODO: TG1-TG8 buttons belong to TX802-Panel-Left.png — implement with left panel later
     juce::OwnedArray<juce::TextButton> fpTgButtons;
     // TODO: RESET — no dedicated physical button; implement as software action later

@@ -331,6 +331,22 @@ MainComponent::MainComponent()
             leftPanelTab.addChildComponent(tgLedOverlay[i]);
         }
     }
+    // TG1-TG8 hit-rect buttons on the Left Panel — momentary darken + toggle On/Off
+    for (int i = 0; i < 8; ++i)
+    {
+        auto* btn = lpTgButtons.add(new PanelButton());
+        btn->momentary = true;
+        leftPanelTab.addAndMakeVisible(btn);
+        btn->onClick = [this, i]
+        {
+            if (! midiSender || ! midiSender->isOpen()) return;
+            midi::ConfigState cfg;
+            midi::Config::load(cfg);
+            const bool currentlyOn = midi::tgOnFromString(cfg.tg[i].tgOnOff);
+            sendPerfParam(i + 1, "TG", currentlyOn ? 0 : 1);
+            perfTgOnOff[i].setSelectedId(currentlyOn ? 1 : 2, juce::dontSendNotification);
+        };
+    }
     // Mode select buttons: non-momentary radio group
     fpModeGroup[0] = &fpPerformSelect;
     fpModeGroup[1] = &fpVoiceSelect;
@@ -838,6 +854,20 @@ void MainComponent::resized()
                 juce::roundToInt(pt.y / scale),
                 juce::roundToInt(kLedWidth  / scale),
                 juce::roundToInt(kLedHeight / scale));
+        }
+    }
+
+    // ── Left Panel TG button hit-rects ──
+    {
+        using namespace PanelLayout;
+        auto* disp = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay();
+        float scale = disp ? (float)disp->scale : 1.0f;
+        for (int i = 0; i < 8; ++i)
+        {
+            const auto& r = Left::tgButton[i];
+            lpTgButtons[i]->setBounds(
+                juce::roundToInt(r.x / scale), juce::roundToInt(r.y / scale),
+                juce::roundToInt(r.w / scale), juce::roundToInt(r.h / scale));
         }
     }
 
