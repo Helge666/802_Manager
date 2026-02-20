@@ -1397,6 +1397,26 @@ void MainComponent::sendPerfParam(int tg1to8, const juce::String& paramName, int
     const juce::uint8 devId = (juce::uint8) cfg.deviceId;
     const int i = tg1to8 - 1;
 
+    // TG1 On/Off: PCED LINK (param 0) is accepted by the device but has no effect —
+    // TG1 is the anchor TG and cannot be linked/unlinked via SysEx.
+    // The only mechanism that controls TG1 on the device is Remote Switch code 89
+    // (the physical TG1 button). We send it only when the state is actually changing
+    // to avoid toggling in the wrong direction (code 89 is a toggle, not set/clear).
+    // All other parameters (VNUM, RXCH, note range, etc.) use PCED normally for TG1.
+    if (tg1to8 == 1 && paramName == "TG")
+    {
+        const bool currentlyOn = midi::tgOnFromString(cfg.tg[0].tgOnOff);
+        if (currentlyOn != (userValue != 0))
+            midi::Tx802HighLevel::sendButtonByName(*midiSender, "TG1", devId);
+        cfg.tg[0].tgOnOff = midi::tgOnToString(userValue != 0);
+        cfg.hasPerformanceParams = true;
+        midi::Config::save(cfg);
+        setTgLed(1, userValue != 0);
+        perfStatus.setText(juce::String("TG1 = ") + (userValue != 0 ? "On" : "Off") + " sent",
+                           juce::dontSendNotification);
+        return;
+    }
+
     int paramNum = -1;
     int internalValue = -1;
     bool twoByteVnum = false;
@@ -1482,6 +1502,11 @@ void MainComponent::sendPerfParam(int tg1to8, const juce::String& paramName, int
     {
         // LINK param sent — LED reflects On/Off directly
         setTgLed(tg1to8, userValue != 0);
+        // Device side effect: toggling any TG2-8 while TG1 is Off forces TG1 On,
+        // regardless of direction (On or Off). Send code 89 immediately after to
+        // restore TG1 Off. Device processes MIDI in order so no sleep needed.
+        if (tg1to8 > 1 && ! midi::tgOnFromString(cfg.tg[0].tgOnOff))
+            midi::Tx802HighLevel::sendButtonByName(*midiSender, "TG1", devId);
     }
     else if (paramName == "PRESET")
     {

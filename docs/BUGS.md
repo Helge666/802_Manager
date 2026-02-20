@@ -6,7 +6,7 @@
 
 **File:** `src/MainComponent.cpp` → `sendPerfParam()`
 **Severity:** Medium
-**Status:** Open — needs further investigation before fixing
+**Status:** Fixed — see Resolution below
 
 ### Description
 
@@ -27,29 +27,43 @@ internalValue = (userValue != 0) ? i : 0;      // On → 0, Off → 0 — identi
 For TG2–8 the values are distinct (e.g. TG3 On → value 2, Off → value 0),
 so only TG1 is affected.
 
-### Device behaviour (partially understood)
+### Device behaviour (confirmed)
 
 Per `assets/documentation/TX802 TG Linking Info.md`:
 > "TG1 values are accepted, but have no function, since TG1 is the anchor TG
 > and can't be linked."
 
-This suggests TG1's LINK PCED parameter is ignored by the device entirely —
-TG1 is permanently the anchor and always On via SysEx. However, it has been
-observed on the physical device that **pressing the physical TG1 button does
-turn TG1 off**, which contradicts the documentation. This means there is likely
-a distinction between:
-- The PCED LINK SysEx parameter (no function for TG1 per docs)
-- The Remote Switch TG1 button press (code 89), which may toggle TG1 differently
+TG1's PCED LINK parameter is ignored by the device entirely — TG1 is the anchor
+TG and cannot be linked or unlinked via SysEx regardless of the value sent.
 
-### What needs investigation
+The only mechanism that controls TG1 On/Off on the device is **Remote Switch
+code 89** (the physical TG1 button). This was confirmed by observation: sending
+code 89 causes the physical TG1 LED to flicker briefly, proving the device receives
+and responds to it.
 
-- Confirm whether Remote Switch code 89 (TG1 button) can toggle TG1 off/on
-- Determine whether there is any SysEx mechanism to turn TG1 off
-- Understand how the app should handle TG1 On/Off in the Performance Editor
-  and how the LED overlay should reflect it
+The reason it only flickered and did not stay toggled during initial testing was
+that the `sendPerfParam` call that followed was sending PCED LINK param 0 with
+value 0, which the device interprets as "TG1 self-link = anchor = On", immediately
+re-enabling TG1.
 
-### Where to Fix (once understood)
+### Resolution
 
-`src/MainComponent.cpp`, `sendPerfParam()`, the `"TG"` branch.
-The same logic exists in `Tx802HighLevel.h` → `restorePerformanceParams()`
-and should be reviewed there too.
+`sendPerfParam()` was given a TG1-specific early-return path for the `"TG"` param:
+
+- Reads the current TG1 state from config
+- Sends Remote Switch code 89 **only if the state is actually changing** (code 89
+  is a toggle, not a set/clear — sending it when state is already correct would
+  flip it the wrong way)
+- Updates config, LED overlay, and status label directly
+- Returns before reaching the PCED send block
+
+All other parameters for TG1 (VNUM/PRESET, RXCH, note range, detune, shift, vol,
+pan, damp) continue to use PCED parameter changes as normal — this fix is strictly
+limited to the `"TG"` On/Off branch.
+
+### Why not fix the code-side arithmetic bug?
+
+Fixing the arithmetic (`internalValue = (userValue != 0) ? i : 0` for i=0) would
+not help, because the device ignores TG1's LINK parameter entirely regardless of
+the value. The root cause is a device limitation, not just a code bug. The correct
+solution is to use a different SysEx mechanism (Remote Switch) for TG1 On/Off only.
