@@ -112,6 +112,11 @@ private:
     // Left panel tab — TX802-Panel-Left.png, same DPI-aware rendering as FrontPanelTab.
     class LeftPanelTab : public FrontPanelTab {};
 
+    // TG LED overlays (LED-On.png) drawn on top of each TG button in the Left Panel tab.
+    // Index 0 = TG1 … 7 = TG8. Visibility is controlled via setTgLed().
+    juce::ImageComponent tgLedOverlay[8];
+    void setTgLed(int tg1to8, bool on);
+
     // Transparent hit-rect button overlaid on the panel image.
     // momentary=true  → darkens while held, clears on release
     // momentary=false → darkens on press, stays dark (radio group behavior)
