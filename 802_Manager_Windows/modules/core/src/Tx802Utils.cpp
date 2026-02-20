@@ -152,13 +152,19 @@ bool isMacro(const juce::String& name)
 
 juce::StringArray getStartupSequence()
 {
+    // IMPORTANT: This sequence is only safe and correct when sent to a device
+    // that has just been powered on or hardware-reset. The navigation steps that
+    // follow RESET rely on the device being in its exact default post-reset state.
+    // If sent to a device already running in any other state, the button presses
+    // will land on unpredictable parameters and may corrupt the device configuration.
+    // The sequence must always be treated as an indivisible unit starting from RESET.
     return {
-        "RESET",
-        "WAIT=3",
-        "PRTCT_OFF",
-        "UTILITY", "TG5", "YES", "YES", "WAIT",
-        "SYSTEM_SETUP", "TG4", "TG4", "MINUS_ONE",
-        "VOICE_SELECT"
+        "RESET",                                         // Hardware reset — puts device in known default state
+        "WAIT=3",                                        // Wait for device to finish booting (mandatory)
+        "PRTCT_OFF",                                     // Disable memory protection (SYSTEM_SETUP -> TG8 -> NO)
+        "UTILITY", "TG5", "YES", "YES", "WAIT",          // Init Performance: links TG2-TG8 to TG1
+        "SYSTEM_SETUP", "TG4", "TG4", "MINUS_ONE",       // Set Voice Bank receive to I1-I32
+        "VOICE_SELECT"                                   // Return LCD to main voice select menu
     };
 }
 

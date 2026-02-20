@@ -42,21 +42,22 @@ Defined in `core::getStartupSequence()` (`Tx802Utils.cpp`):
 
 | Step | Command | Detail |
 |------|---------|--------|
-| 1 | `RESET` | Remote Switch code 64 — hardware reset |
-| 2 | `WAIT=3` | Sleep 3 seconds (device boot time) |
+| 1 | `RESET` | Hardware reset — puts device in known default state |
+| 2 | `WAIT=3` | Wait 3 seconds for device to finish booting (mandatory) |
 | 3 | `PRTCT_OFF` | Macro: `SYSTEM_SETUP` → `TG8` → `NO` — disables memory protection |
-| 4 | `UTILITY` | Code 84 |
-| 5 | `TG5` | Code 93 |
-| 6 | `YES` | Code 79 |
-| 7 | `YES` | Code 79 |
+| 4–7 | `UTILITY` → `TG5` → `YES` → `YES` | Init Performance: links TG2–TG8 to TG1 |
 | 8 | `WAIT` | Sleep 1 second |
-| 9 | `SYSTEM_SETUP` | Code 83 |
-| 10 | `TG4` | Code 92 |
-| 11 | `TG4` | Code 92 (sent twice deliberately) |
-| 12 | `MINUS_ONE` | Code 78 |
-| 13 | `VOICE_SELECT` | Code 82 |
+| 9–12 | `SYSTEM_SETUP` → `TG4` → `TG4` → `MINUS_ONE` | Set Voice Bank receive to I1–I32 |
+| 13 | `VOICE_SELECT` | Return LCD to main voice select menu |
 
 Between each button press: **100 ms delay** (`kButtonDelayMs`).
+
+> **CRITICAL:** This sequence is only safe and correct when sent to a device that
+> has just been powered on or hardware-reset. The navigation steps (steps 4–12)
+> rely on the device being in its exact default post-reset state. If sent to a
+> device already running in any other state, the button presses will land on
+> unpredictable parameters and may corrupt the device configuration.
+> **The sequence must always be treated as an indivisible unit starting from RESET.**
 
 Each button press is a **Remote Switch SysEx**:
 ```
