@@ -90,6 +90,15 @@ namespace PanelLayout
         constexpr Rect intBtn        { 638, 250, 68, 68 };
         constexpr Rect crtBtn        { 719, 250, 68, 68 };
         constexpr Rect enterSpace    { 800, 250, 68, 68 };
+
+        // Convenience arrays for iteration
+        constexpr Rect modeButtons[8] = {
+            performSelect, voiceSelect, systemSetup, utility,
+            performEdit,   voiceEditI,  voiceEditII, storeCompare
+        };
+        constexpr Rect numPad[10] = {
+            num0, num1, num2, num3, num4, num5, num6, num7, num8, num9
+        };
     }
 
 } // namespace PanelLayout
