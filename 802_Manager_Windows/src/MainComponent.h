@@ -287,8 +287,8 @@ private:
     LeftPanelTab  leftPanelTab;
     LcdDisplay    lcdDisplay;
     void setLcdLine(int line0or1, const juce::String& text);
-    juce::String  buildLinkLine() const; // 40-char line 2: TG On/Off state
-    void          updateLcdFromConfig(); // line 1 blank, line 2 = buildLinkLine()
+    juce::String  buildLinkLine() const;  // 40-char line 2: I0X (On) or <-- (Off) per TG; TG1 always I01
+    void          updateLcdFromConfig(); // line 0: blank (reserved); line 1: buildLinkLine()
     void deactivateModeButtons();
     // Mode select buttons (radio: stays dark until another is pressed)
     PanelButton fpPerformSelect, fpVoiceSelect, fpSystemSetup, fpUtility;
@@ -363,7 +363,11 @@ private:
         midi::MidiSender& sender;
         int deviceId;
         std::function<void(int, bool)> ledCallback;
-        std::function<void(int)>       lcdCallback; // 0=reset sent, 1=preparing, 2=ready
+        // LCD lifecycle callback — called from the background thread; must use callAsync internally.
+        // Stage 0: RESET just sent       → show TX802 boot splash text
+        // Stage 1: WAIT=3 expired        → device is up; show "Preparing device, wait..."
+        // Stage 2: full sequence done    → call updateLcdFromConfig() for live data
+        std::function<void(int)> lcdCallback;
     };
     std::unique_ptr<StartupThread> startupThread;
 

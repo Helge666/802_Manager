@@ -1630,7 +1630,7 @@ juce::String MainComponent::buildLinkLine() const
 
 void MainComponent::updateLcdFromConfig()
 {
-    setLcdLine(0, "");
+    setLcdLine(0, "");             // reserved — content TBD once dependent features are implemented
     setLcdLine(1, buildLinkLine());
 }
 
