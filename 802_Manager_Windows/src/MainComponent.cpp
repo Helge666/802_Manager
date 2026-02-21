@@ -1620,7 +1620,9 @@ juce::String MainComponent::buildLinkLine() const
     for (int i = 0; i < 8; ++i)
     {
         if (i > 0) line += "  ";
-        line += midi::tgOnFromString(cfg.tg[i].tgOnOff) ? ("I0" + juce::String(i + 1)) : "<--";
+        // TG1 is always On on the device — never show "<--" for it
+        bool on = (i == 0) ? true : midi::tgOnFromString(cfg.tg[i].tgOnOff);
+        line += on ? ("I0" + juce::String(i + 1)) : "<--";
     }
     line += " ";
     return line;
