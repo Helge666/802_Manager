@@ -145,6 +145,42 @@ private:
         }
     };
 
+    // LCD text display overlaid on the display area of TX802-Panel-Left.png.
+    // setLine(0, ...) updates the top line; setLine(1, ...) updates the bottom line.
+    // Text is clipped to 40 characters and rendered in the system monospace font.
+    class LcdDisplay : public juce::Component
+    {
+    public:
+        void setLine(int line0or1, const juce::String& text)
+        {
+            lines[juce::jlimit(0, 1, line0or1)] = text.substring(0, 40);
+            repaint();
+        }
+
+        void paint(juce::Graphics& g) override
+        {
+            const float w = (float)getWidth();
+            const float h = (float)getHeight();
+            // Font height: constrained so 40 chars fit in width (mono ratio ~0.6) and 2 lines fit in height
+            const float fontH = std::min(h * 0.44f, w / (40.0f * 0.6f));
+            g.setFont(juce::Font(juce::Font::getDefaultMonospacedFontName(), fontH, juce::Font::plain));
+            g.setColour(juce::Colour(0xFF0F2000)); // dark green on LCD green background
+            const float lineH = h * 0.5f;
+            const int leftPad   = 4; // px gap from left edge of display area
+            const int line0OffY = 6; // px to shift top line downward
+            for (int i = 0; i < 2; ++i)
+            {
+                int y = juce::roundToInt(i * lineH) + (i == 0 ? line0OffY : 0);
+                g.drawText(lines[i], leftPad, y,
+                           (int)w - leftPad, juce::roundToInt(lineH),
+                           juce::Justification::centredLeft, false);
+            }
+        }
+
+    private:
+        juce::String lines[2];
+    };
+
     // (Deprecated) Per-row component approach removed; using painted arrows + click handling instead
 
     void openDx7Bank();
@@ -249,6 +285,8 @@ private:
     // See PanelLayout::Right for pixel positions of physical buttons.
     FrontPanelTab frontPanelTab;
     LeftPanelTab  leftPanelTab;
+    LcdDisplay    lcdDisplay;
+    void setLcdLine(int line0or1, const juce::String& text);
     void deactivateModeButtons();
     // Mode select buttons (radio: stays dark until another is pressed)
     PanelButton fpPerformSelect, fpVoiceSelect, fpSystemSetup, fpUtility;
