@@ -347,6 +347,12 @@ MainComponent::MainComponent()
             perfTgOnOff[i].setSelectedId(currentlyOn ? 1 : 2, juce::dontSendNotification);
         };
     }
+    // LCD text overlay on the display area (non-interactive, drawn on top of the green LCD region)
+    lcdDisplay.setInterceptsMouseClicks(false, false);
+    leftPanelTab.addAndMakeVisible(lcdDisplay);
+    lcdDisplay.setLine(0, "*****        YAMAHA  TX802         *****");
+    lcdDisplay.setLine(1, "*****      FM Tone Generator       *****");
+
     // Mode select buttons: non-momentary radio group
     fpModeGroup[0] = &fpPerformSelect;
     fpModeGroup[1] = &fpVoiceSelect;
@@ -869,6 +875,17 @@ void MainComponent::resized()
                 juce::roundToInt(r.x / scale), juce::roundToInt(r.y / scale),
                 juce::roundToInt(r.w / scale), juce::roundToInt(r.h / scale));
         }
+    }
+
+    // ── Left Panel LCD display overlay ──
+    {
+        using namespace PanelLayout;
+        auto* disp = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay();
+        float scale = disp ? (float)disp->scale : 1.0f;
+        const auto& r = Left::displayArea;
+        lcdDisplay.setBounds(
+            juce::roundToInt(r.x / scale), juce::roundToInt(r.y / scale),
+            juce::roundToInt(r.w / scale), juce::roundToInt(r.h / scale));
     }
 
     // ── Settings tab layout ──
@@ -1560,6 +1577,11 @@ void MainComponent::setTgLed(int tg1to8, bool on)
         tgLedOverlay[i].setVisible(on);
         tgLedOverlay[i].repaint();
     }
+}
+
+void MainComponent::setLcdLine(int line0or1, const juce::String& text)
+{
+    lcdDisplay.setLine(line0or1, text);
 }
 
 void MainComponent::refreshPerfPresetDropdowns()
