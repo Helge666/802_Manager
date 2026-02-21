@@ -106,7 +106,10 @@ public:
 
     // Bring device into a well-known state for bank reception.
     // Uses core::getStartupSequence() for the command list.
-    static void sendStartupSequence(MidiSender& sender, juce::uint8 deviceId1to16)
+    // onDeviceBooted (optional): called once, right after the WAIT that follows RESET —
+    // i.e. the device has finished booting but the remaining init steps are still running.
+    static void sendStartupSequence(MidiSender& sender, juce::uint8 deviceId1to16,
+                                    std::function<void()> onDeviceBooted = nullptr)
     {
         StartupLog::clear();
         StartupLog::write("=== sendStartupSequence BEGIN  deviceId=" + juce::String((int)deviceId1to16)
@@ -114,6 +117,7 @@ public:
 
         auto sequence = core::getStartupSequence();
         int step = 0;
+        bool resetSeen = false;
 
         for (const auto& cmd : sequence)
         {
@@ -128,6 +132,11 @@ public:
                 StartupLog::write("  sleeping " + juce::String(ms) + "ms");
                 juce::Thread::sleep(ms);
                 StartupLog::write("  done sleeping");
+                if (resetSeen && onDeviceBooted)
+                {
+                    onDeviceBooted();
+                    onDeviceBooted = nullptr; // fire once only
+                }
             }
             else if (core::isMacro(cmd))
             {
@@ -135,6 +144,7 @@ public:
             }
             else
             {
+                if (cmd == "RESET" || cmd == "REBOOT") resetSeen = true;
                 sendButtonByName(sender, cmd, deviceId1to16);
                 juce::Thread::sleep(kButtonDelayMs);
             }
