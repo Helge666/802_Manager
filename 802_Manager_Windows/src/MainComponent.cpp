@@ -44,6 +44,11 @@ static juce::MemoryBlock getInitVoice128()
 
 MainComponent::~MainComponent()
 {
+    if (bankSendThread)
+    {
+        bankSendThread->stopThread(8000);
+        bankSendThread.reset();
+    }
     if (startupThread)
     {
         startupThread->stopThread(8000);
@@ -85,6 +90,47 @@ void MainComponent::StartupThread::run()
 
     midi::Tx802HighLevel::restorePerformanceParams(sender, (juce::uint8) deviceId, cfg, ledCallback);
     if (lcdCallback) lcdCallback(2); // startup complete — show ready text
+}
+
+void MainComponent::BankSendThread::run()
+{
+    // Disable memory protection (SYSTEM_SETUP → TG8 → NO, 100 ms between each)
+    midi::Tx802HighLevel::sendMacroByName(sender, "PRTCT_OFF", deviceId);
+    juce::Thread::sleep(100); // brief pause before data transfer
+
+    // Build send buffer: full 4104-byte bank for full send, truncated for partial
+    const size_t sendSize = isPartial
+        ? (size_t)(6 + patchCount * 128 + 4)
+        : bank.getSize();
+    juce::MemoryBlock toSend(bank.getData(), sendSize);
+
+    if (! sender.sendSysexPaced(toSend, sysexChunkBytes, sysexInterChunkMs))
+        sender.sendSysex(toSend);
+
+    // Post-send sequence matching Python send_bank() exactly.
+    // For partial sends the device is left in an incomplete SysEx receive state;
+    // a dedicated VOICE_SELECT is required to exit that state before the
+    // normal refresh sequence (VOICE_SELECT → PLUS_ONE → MINUS_ONE) can run.
+    if (isPartial)
+    {
+        juce::Thread::sleep(500);
+        midi::Tx802HighLevel::sendButtonByName(sender, "VOICE_SELECT", deviceId); // exit SysEx receive state
+        juce::Thread::sleep(1000);
+    }
+    else
+    {
+        juce::Thread::sleep(1000);
+    }
+
+    // Refresh voice display
+    midi::Tx802HighLevel::sendButtonByName(sender, "VOICE_SELECT", deviceId);
+    juce::Thread::sleep(midi::Tx802HighLevel::kButtonDelayMs);
+    midi::Tx802HighLevel::sendButtonByName(sender, "PLUS_ONE", deviceId);
+    juce::Thread::sleep(midi::Tx802HighLevel::kButtonDelayMs);
+    midi::Tx802HighLevel::sendButtonByName(sender, "MINUS_ONE", deviceId);
+
+    if (doneCallback)
+        doneCallback(true, patchCount);
 }
 
 MainComponent::MainComponent()
@@ -350,6 +396,7 @@ MainComponent::MainComponent()
         leftPanelTab.addAndMakeVisible(btn);
         btn->onClick = [this, i]
         {
+            selectedTg = i;
             if (! midiSender || ! midiSender->isOpen()) return;
             midi::ConfigState cfg;
             midi::Config::load(cfg);
@@ -1254,12 +1301,10 @@ void MainComponent::sendBankToDevice()
     if (! midiSender || ! midiSender->isOpen()) { statusLabel.setText("Open a MIDI output first", juce::dontSendNotification); return; }
     if (! presetsDb) { statusLabel.setText("No DB", juce::dontSendNotification); return; }
 
-    const juce::uint8 deviceId = 1;
-    midi::Tx802HighLevel::sendMacroByName(*midiSender, "PRTCT_OFF", deviceId);
-    juce::Thread::sleep(120);
-
-    midi::ConfigState cfgPts; midi::Config::load(cfgPts);
-    const int patchCount = juce::jlimit(1, 32, cfgPts.patchesToSend);
+    midi::ConfigState cfg;
+    midi::Config::load(cfg);
+    const juce::uint8 deviceId = (juce::uint8) cfg.deviceId;
+    const int patchCount = juce::jlimit(1, 32, cfg.patchesToSend);
     const bool isPartial = patchCount < 32;
 
     juce::MemoryBlock packed4096(32 * 128);
@@ -1269,7 +1314,7 @@ void MainComponent::sendBankToDevice()
     for (int i = 0; i < 32; ++i)
     {
         juce::MemoryBlock v128;
-        const int id = bankSlotIds[i];
+        const int id = (i < bankSlotIds.size()) ? bankSlotIds[i] : 0;
         if (id > 0)
         {
             juce::MemoryBlock syx; juce::String err; juce::String msg; juce::MemoryBlock v155;
@@ -1300,35 +1345,11 @@ void MainComponent::sendBankToDevice()
 
     {
         auto cfgFile = midi::Config::getConfigFile();
-        auto dir = cfgFile.getParentDirectory();
-        auto bankFile = dir.getChildFile("startup_bank.syx");
-        const bool wrote = bankFile.replaceWithData(bank.getData(), (int) bank.getSize());
-        statusLabel.setText(wrote ? juce::String("Wrote ") + bankFile.getFullPathName()
-                                  : juce::String("Failed to write ") + bankFile.getFullPathName(),
-                            juce::dontSendNotification);
+        auto bankFile = cfgFile.getParentDirectory().getChildFile("startup_bank.syx");
+        bankFile.replaceWithData(bank.getData(), (int) bank.getSize());
     }
 
-    if (isPartial)
-    {
-        // Partial transfer: send header + N voices + 4 bytes into next voice, no checksum/F7
-        const int cutoffIndex = 6 + (patchCount * 128) + 4;
-        juce::MemoryBlock truncated(bank.getData(), (size_t) cutoffIndex);
-        DBG("Partial transfer: sending first " + juce::String(patchCount) + " voices (" + juce::String(cutoffIndex) + " bytes)");
-        midi::ConfigState cfgP; midi::Config::load(cfgP);
-        if (! midiSender->sendSysexPaced(truncated, cfgP.sysexChunkBytes, cfgP.sysexInterChunkMs))
-            midiSender->sendSysex(truncated);
-    }
-    else
-    {
-        midi::ConfigState cfgP; midi::Config::load(cfgP);
-        if (! midiSender->sendSysexPaced(bank, cfgP.sysexChunkBytes, cfgP.sysexInterChunkMs))
-            midiSender->sendSysex(bank);
-    }
-    juce::Thread::sleep(150);
-    midi::Tx802HighLevel::sendButtonByName(*midiSender, "VOICE_SELECT", deviceId);
-    midi::Tx802HighLevel::sendButtonByName(*midiSender, "PLUS_ONE", deviceId);
-    midi::Tx802HighLevel::sendButtonByName(*midiSender, "MINUS_ONE", deviceId);
-
+    // Save slot names to config now (main thread, before background send starts)
     {
         midi::ConfigState cfgS; midi::Config::load(cfgS);
         cfgS.presetBankNames.clear();
@@ -1337,9 +1358,30 @@ void MainComponent::sendBankToDevice()
         midi::Config::save(cfgS);
         refreshPerfPresetDropdowns();
     }
-    statusLabel.setText(isPartial ? "Sent first " + juce::String(patchCount) + " voices (partial transfer)"
-                                  : "Sent 32-voice bank (PRTCT_OFF, VOICE_SELECT, +/-)",
-                        juce::dontSendNotification);
+
+    // Stop any in-progress send before starting a new one
+    if (bankSendThread)
+    {
+        bankSendThread->stopThread(5000);
+        bankSendThread.reset();
+    }
+
+    statusLabel.setText("Sending...", juce::dontSendNotification);
+
+    bankSendThread = std::make_unique<BankSendThread>(
+        *midiSender, deviceId, std::move(bank), isPartial, patchCount,
+        cfg.sysexChunkBytes, cfg.sysexInterChunkMs,
+        [this, isPartial, patchCount](bool /*ok*/, int count)
+        {
+            juce::MessageManager::callAsync([this, isPartial, count]
+            {
+                statusLabel.setText(
+                    isPartial ? "Sent " + juce::String(count) + " voices (partial transfer)"
+                              : "Sent 32-voice bank",
+                    juce::dontSendNotification);
+            });
+        });
+    bankSendThread->startThread();
 }
 
 // ── Helpers ──

@@ -300,6 +300,9 @@ private:
     // TG1-TG8 momentary hit-rect buttons on the Left Panel tab.
     // Clicking toggles the TG On/Off state and sends the corresponding SysEx.
     juce::OwnedArray<PanelButton> lpTgButtons;
+    // 0-based index of the currently selected TG (-1 = none selected).
+    // Set when the user clicks a TG button; used by the sections below the panel image.
+    int selectedTg { -1 };
     // TODO: TG1-TG8 buttons belong to TX802-Panel-Left.png — implement with left panel later
     juce::OwnedArray<juce::TextButton> fpTgButtons;
     // TODO: RESET — no dedicated physical button; implement as software action later
@@ -370,6 +373,31 @@ private:
         std::function<void(int)> lcdCallback;
     };
     std::unique_ptr<StartupThread> startupThread;
+
+    // Background thread for bank send sequence (avoids blocking message thread)
+    class BankSendThread : public juce::Thread
+    {
+    public:
+        BankSendThread(midi::MidiSender& s, juce::uint8 devId,
+                       juce::MemoryBlock bankData, bool partial, int pCount,
+                       int chunkBytes, int interChunkMs,
+                       std::function<void(bool, int)> onDone)
+            : juce::Thread("TX802 Bank Send"), sender(s), deviceId(devId),
+              bank(std::move(bankData)), isPartial(partial), patchCount(pCount),
+              sysexChunkBytes(chunkBytes), sysexInterChunkMs(interChunkMs),
+              doneCallback(std::move(onDone)) {}
+        void run() override;
+    private:
+        midi::MidiSender& sender;
+        juce::uint8 deviceId;
+        juce::MemoryBlock bank;
+        bool isPartial;
+        int patchCount;
+        int sysexChunkBytes;
+        int sysexInterChunkMs;
+        std::function<void(bool, int)> doneCallback;
+    };
+    std::unique_ptr<BankSendThread> bankSendThread;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };
