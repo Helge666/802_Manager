@@ -351,13 +351,17 @@ private:
     class StartupThread : public juce::Thread
     {
     public:
-        StartupThread(midi::MidiSender& s, int devId, std::function<void(int, bool)> cb = nullptr)
-            : Thread("TX802 Startup"), sender(s), deviceId(devId), ledCallback(std::move(cb)) {}
+        StartupThread(midi::MidiSender& s, int devId,
+                      std::function<void(int, bool)> ledCb = nullptr,
+                      std::function<void(int)>       lcdCb = nullptr)
+            : Thread("TX802 Startup"), sender(s), deviceId(devId),
+              ledCallback(std::move(ledCb)), lcdCallback(std::move(lcdCb)) {}
         void run() override;
     private:
         midi::MidiSender& sender;
         int deviceId;
         std::function<void(int, bool)> ledCallback;
+        std::function<void(int)>       lcdCallback; // 0=reset sent, 1=preparing, 2=ready
     };
     std::unique_ptr<StartupThread> startupThread;
 

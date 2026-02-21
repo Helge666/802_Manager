@@ -8,6 +8,14 @@
 
 using core::Dx7Utils;
 
+// LCD text constants — shown during and after device reset
+static const juce::String kLcdReset0    = "*****        YAMAHA  TX802         *****";
+static const juce::String kLcdReset1    = "*****      FM Tone Generator       *****";
+static const juce::String kLcdPrepare0  = "Preparing device, wait...";
+static const juce::String kLcdPrepare1  = "";
+static const juce::String kLcdReady0   = "to be implemented";
+static const juce::String kLcdReady1   = "";
+
 // Hard-coded Init Voice (patch 16608) as full single-voice SysEx.
 // Matches Python's DEFAULT_INIT_VOICE_155 packed to 128 bytes at runtime.
 static juce::MemoryBlock getInitVoice128()
@@ -47,7 +55,11 @@ MainComponent::~MainComponent()
 
 void MainComponent::StartupThread::run()
 {
-    midi::Tx802HighLevel::sendStartupSequence(sender, (juce::uint8) deviceId);
+    if (lcdCallback) lcdCallback(0); // RESET sent — show startup text
+    midi::Tx802HighLevel::sendStartupSequence(sender, (juce::uint8) deviceId,
+        [this] {
+            if (lcdCallback) lcdCallback(1); // device booted — show "preparing" text
+        });
     if (threadShouldExit()) return;
 
     midi::ConfigState cfg;
@@ -74,6 +86,7 @@ void MainComponent::StartupThread::run()
     }
 
     midi::Tx802HighLevel::restorePerformanceParams(sender, (juce::uint8) deviceId, cfg, ledCallback);
+    if (lcdCallback) lcdCallback(2); // startup complete — show ready text
 }
 
 MainComponent::MainComponent()
@@ -348,10 +361,9 @@ MainComponent::MainComponent()
         };
     }
     // LCD text overlay on the display area (non-interactive, drawn on top of the green LCD region)
+    // Lines are left blank at startup; updated as device state changes (see lcdCallback in StartupThread).
     lcdDisplay.setInterceptsMouseClicks(false, false);
     leftPanelTab.addAndMakeVisible(lcdDisplay);
-    lcdDisplay.setLine(0, "*****        YAMAHA  TX802         *****");
-    lcdDisplay.setLine(1, "*****      FM Tone Generator       *****");
 
     // Mode select buttons: non-momentary radio group
     fpModeGroup[0] = &fpPerformSelect;
@@ -541,6 +553,13 @@ MainComponent::MainComponent()
                     startupThread = std::make_unique<StartupThread>(*midiSender, cfg.deviceId,
                     [this](int tg, bool on) {
                         juce::MessageManager::callAsync([this, tg, on] { setTgLed(tg, on); });
+                    },
+                    [this](int stage) {
+                        juce::MessageManager::callAsync([this, stage] {
+                            if      (stage == 0) { setLcdLine(0, kLcdReset0);   setLcdLine(1, kLcdReset1);   }
+                            else if (stage == 1) { setLcdLine(0, kLcdPrepare0); setLcdLine(1, kLcdPrepare1); }
+                            else                 { setLcdLine(0, kLcdReady0);   setLcdLine(1, kLcdReady1);   }
+                        });
                     });
                     startupThread->startThread();
                 }
@@ -1395,6 +1414,15 @@ void MainComponent::sendReboot()
     const juce::uint8 deviceId = 1;
     const bool ok = midi::Tx802HighLevel::sendButtonByName(*midiSender, "RESET", deviceId);
     midiStatusBox.setText(ok ? "Sent REBOOT (RESET)" : "Failed to send REBOOT");
+    if (ok)
+    {
+        setLcdLine(0, kLcdReset0);
+        setLcdLine(1, kLcdReset1);
+        juce::Timer::callAfterDelay(3000, [this] {
+            setLcdLine(0, kLcdReady0);
+            setLcdLine(1, kLcdReady1);
+        });
+    }
 }
 
 void MainComponent::refreshPresets() {}
