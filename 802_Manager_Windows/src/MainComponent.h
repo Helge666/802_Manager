@@ -287,6 +287,8 @@ private:
     LeftPanelTab  leftPanelTab;
     LcdDisplay    lcdDisplay;
     void setLcdLine(int line0or1, const juce::String& text);
+    juce::String  buildLinkLine() const; // 40-char line 2: TG On/Off state
+    void          updateLcdFromConfig(); // line 1 blank, line 2 = buildLinkLine()
     void deactivateModeButtons();
     // Mode select buttons (radio: stays dark until another is pressed)
     PanelButton fpPerformSelect, fpVoiceSelect, fpSystemSetup, fpUtility;

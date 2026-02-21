@@ -9,12 +9,10 @@
 using core::Dx7Utils;
 
 // LCD text constants — shown during and after device reset
-static const juce::String kLcdReset0    = "*****        YAMAHA  TX802         *****";
-static const juce::String kLcdReset1    = "*****      FM Tone Generator       *****";
-static const juce::String kLcdPrepare0  = "Preparing device, wait...";
-static const juce::String kLcdPrepare1  = "";
-static const juce::String kLcdReady0   = "to be implemented";
-static const juce::String kLcdReady1   = "";
+static const juce::String kLcdReset0   = "*****        YAMAHA  TX802         *****";
+static const juce::String kLcdReset1   = "*****      FM Tone Generator       *****";
+static const juce::String kLcdPrepare0 = "Preparing device, wait...";
+static const juce::String kLcdPrepare1 = "";
 
 // Hard-coded Init Voice (patch 16608) as full single-voice SysEx.
 // Matches Python's DEFAULT_INIT_VOICE_155 packed to 128 bytes at runtime.
@@ -558,7 +556,7 @@ MainComponent::MainComponent()
                         juce::MessageManager::callAsync([this, stage] {
                             if      (stage == 0) { setLcdLine(0, kLcdReset0);   setLcdLine(1, kLcdReset1);   }
                             else if (stage == 1) { setLcdLine(0, kLcdPrepare0); setLcdLine(1, kLcdPrepare1); }
-                            else                 { setLcdLine(0, kLcdReady0);   setLcdLine(1, kLcdReady1);   }
+                            else                 { updateLcdFromConfig(); }
                         });
                     });
                     startupThread->startThread();
@@ -1418,10 +1416,7 @@ void MainComponent::sendReboot()
     {
         setLcdLine(0, kLcdReset0);
         setLcdLine(1, kLcdReset1);
-        juce::Timer::callAfterDelay(3000, [this] {
-            setLcdLine(0, kLcdReady0);
-            setLcdLine(1, kLcdReady1);
-        });
+        juce::Timer::callAfterDelay(3000, [this] { updateLcdFromConfig(); });
     }
 }
 
@@ -1457,6 +1452,7 @@ void MainComponent::sendPerfParam(int tg1to8, const juce::String& paramName, int
         cfg.hasPerformanceParams = true;
         midi::Config::save(cfg);
         setTgLed(1, userValue != 0);
+        updateLcdFromConfig();
         perfStatus.setText(juce::String("TG1 = ") + (userValue != 0 ? "On" : "Off") + " sent",
                            juce::dontSendNotification);
         return;
@@ -1571,6 +1567,9 @@ void MainComponent::sendPerfParam(int tg1to8, const juce::String& paramName, int
     cfg.hasPerformanceParams = true;
     midi::Config::save(cfg);
 
+    if (paramName == "TG")
+        updateLcdFromConfig();
+
     perfStatus.setText(ok ? (paramName + juce::String(tg1to8) + " = " + juce::String(userValue) + " sent")
                           : "Send failed", juce::dontSendNotification);
 }
@@ -1610,6 +1609,27 @@ void MainComponent::setTgLed(int tg1to8, bool on)
 void MainComponent::setLcdLine(int line0or1, const juce::String& text)
 {
     lcdDisplay.setLine(line0or1, text);
+}
+
+juce::String MainComponent::buildLinkLine() const
+{
+    midi::ConfigState cfg;
+    midi::Config::load(cfg);
+    // Format: 1 leading space + (3-char slot + 2-char gap) × 7 + 3-char slot + 1 trailing space = 40 chars
+    juce::String line = " ";
+    for (int i = 0; i < 8; ++i)
+    {
+        if (i > 0) line += "  ";
+        line += midi::tgOnFromString(cfg.tg[i].tgOnOff) ? ("I0" + juce::String(i + 1)) : "<--";
+    }
+    line += " ";
+    return line;
+}
+
+void MainComponent::updateLcdFromConfig()
+{
+    setLcdLine(0, "");
+    setLcdLine(1, buildLinkLine());
 }
 
 void MainComponent::refreshPerfPresetDropdowns()
