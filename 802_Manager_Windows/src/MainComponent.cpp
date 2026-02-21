@@ -396,19 +396,124 @@ MainComponent::MainComponent()
         leftPanelTab.addAndMakeVisible(btn);
         btn->onClick = [this, i]
         {
+            // Show only this TG's row, hide the rest.
+            for (int j = 0; j < 8; ++j)
+                setLpRowVisible(j, j == i);
             selectedTg = i;
+            setLcdLine(0, buildVoiceSelectLine());  // update LCD line 0 for selected TG
+
             if (! midiSender || ! midiSender->isOpen()) return;
             midi::ConfigState cfg;
             midi::Config::load(cfg);
             const bool currentlyOn = midi::tgOnFromString(cfg.tg[i].tgOnOff);
             sendPerfParam(i + 1, "TG", currentlyOn ? 0 : 1);
             perfTgOnOff[i].setSelectedId(currentlyOn ? 1 : 2, juce::dontSendNotification);
+            lpTgOnOff[i].setSelectedId(currentlyOn ? 1 : 2, juce::dontSendNotification);
         };
     }
     // LCD text overlay on the display area (non-interactive, drawn on top of the green LCD region)
     // Lines are left blank at startup; updated as device state changes (see lcdCallback in StartupThread).
     lcdDisplay.setInterceptsMouseClicks(false, false);
     leftPanelTab.addAndMakeVisible(lcdDisplay);
+
+    // ── Left Panel inline performance section ──
+    // All eight TG rows as independent component instances; hidden until first TG click.
+    {
+        for (auto* lbl : { &lpHdrTg, /*&lpHdrOnOff, &lpHdrPrst,*/ &lpHdrChan,
+                           &lpHdrLow, &lpHdrHigh, &lpHdrDet, &lpHdrShft,
+                           &lpHdrVol, &lpHdrOut, &lpHdrDamp })
+        {
+            lbl->setFont(juce::Font(12.0f, juce::Font::bold));
+            lbl->setJustificationType(juce::Justification::centred);
+            lbl->setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+            lpPerfSection.addAndMakeVisible(lbl);
+        }
+
+        midi::ConfigState lpCfg;
+        midi::Config::load(lpCfg);
+
+        for (int i = 0; i < 8; ++i)
+        {
+            const int tg = i + 1;
+            const auto& t = lpCfg.hasPerformanceParams ? lpCfg.tg[i] : midi::TgState();
+
+            lpTgNum[i].setText(juce::String(tg), juce::dontSendNotification);
+            lpTgNum[i].setJustificationType(juce::Justification::centred);
+            lpTgNum[i].setFont(juce::Font(13.0f, juce::Font::bold));
+            lpTgNum[i].setColour(juce::Label::textColourId, juce::Colours::white);
+            lpPerfSection.addChildComponent(lpTgNum[i]);
+
+            // TG On/Off handled by the panel image buttons — not in strip
+            /*
+            lpTgOnOff[i].addItem("Off", 1);
+            lpTgOnOff[i].addItem("On",  2);
+            lpTgOnOff[i].setSelectedId(midi::tgOnFromString(t.tgOnOff) ? 2 : 1, juce::dontSendNotification);
+            lpPerfSection.addChildComponent(lpTgOnOff[i]);
+            lpTgOnOff[i].onChange = [this, tg, i]{ sendPerfParam(tg, "TG", lpTgOnOff[i].getSelectedId() == 2 ? 1 : 0); };
+            */
+
+            // Preset shown on LCD line 0 — not in strip
+            /*
+            // Items populated by refreshPerfPresetDropdowns() (already called earlier in ctor)
+            lpTgPreset[i].setSelectedId(juce::jlimit(1, 32, midi::presetToVnum(t.preset)), juce::dontSendNotification);
+            lpPerfSection.addChildComponent(lpTgPreset[i]);
+            lpTgPreset[i].onChange = [this, tg, i]{ sendPerfParam(tg, "PRESET", lpTgPreset[i].getSelectedId()); };
+            */
+
+            for (int c = 1; c <= 16; ++c) lpTgRxCh[i].addItem(juce::String(c), c);
+            lpTgRxCh[i].addItem("Omni", 17);
+            lpTgRxCh[i].setSelectedId(juce::jlimit(1, 17, midi::rxchFromString(t.rxch)), juce::dontSendNotification);
+            lpPerfSection.addChildComponent(lpTgRxCh[i]);
+            lpTgRxCh[i].onChange = [this, tg, i]{ sendPerfParam(tg, "RXCH", lpTgRxCh[i].getSelectedId()); };
+
+            lpTgNoteLow[i].setRange(0, 127, 1);
+            lpTgNoteLow[i].setValue(midi::noteNameToMidi(t.noteLow), juce::dontSendNotification);
+            lpTgNoteLow[i].setSliderStyle(juce::Slider::IncDecButtons);
+            lpTgNoteLow[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 36, 20);
+            lpPerfSection.addChildComponent(lpTgNoteLow[i]);
+            lpTgNoteLow[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "NOTELOW", (int) lpTgNoteLow[i].getValue()); };
+
+            lpTgNoteHigh[i].setRange(0, 127, 1);
+            lpTgNoteHigh[i].setValue(midi::noteNameToMidi(t.noteHigh), juce::dontSendNotification);
+            lpTgNoteHigh[i].setSliderStyle(juce::Slider::IncDecButtons);
+            lpTgNoteHigh[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 36, 20);
+            lpPerfSection.addChildComponent(lpTgNoteHigh[i]);
+            lpTgNoteHigh[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "NOTEHIGH", (int) lpTgNoteHigh[i].getValue()); };
+
+            lpTgDetune[i].setRange(-7, 7, 1);
+            lpTgDetune[i].setValue(t.detune.getIntValue(), juce::dontSendNotification);
+            lpTgDetune[i].setSliderStyle(juce::Slider::IncDecButtons);
+            lpTgDetune[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 30, 20);
+            lpPerfSection.addChildComponent(lpTgDetune[i]);
+            lpTgDetune[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "DETUNE", (int) lpTgDetune[i].getValue()); };
+
+            lpTgShift[i].setRange(-24, 24, 1);
+            lpTgShift[i].setValue(t.noteShift.getIntValue(), juce::dontSendNotification);
+            lpTgShift[i].setSliderStyle(juce::Slider::IncDecButtons);
+            lpTgShift[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 30, 20);
+            lpPerfSection.addChildComponent(lpTgShift[i]);
+            lpTgShift[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "NOTESHIFT", (int) lpTgShift[i].getValue()); };
+
+            lpTgVol[i].setRange(0, 99, 1);
+            lpTgVol[i].setValue(t.outVol.getIntValue(), juce::dontSendNotification);
+            lpTgVol[i].setSliderStyle(juce::Slider::IncDecButtons);
+            lpTgVol[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 30, 20);
+            lpPerfSection.addChildComponent(lpTgVol[i]);
+            lpTgVol[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "OUTVOL", (int) lpTgVol[i].getValue()); };
+
+            lpTgOut[i].addItem("Off", 1); lpTgOut[i].addItem("Left", 2);
+            lpTgOut[i].addItem("Right", 3); lpTgOut[i].addItem("Center", 4);
+            lpTgOut[i].setSelectedId(midi::panToOutch(t.pan) + 1, juce::dontSendNotification);
+            lpPerfSection.addChildComponent(lpTgOut[i]);
+            lpTgOut[i].onChange = [this, tg, i]{ sendPerfParam(tg, "PAN", lpTgOut[i].getSelectedId() - 1); };
+
+            lpTgDamp[i].addItem("Off", 1); lpTgDamp[i].addItem("On", 2);
+            lpTgDamp[i].setSelectedId(midi::fdampFromString(t.fDamp) == 0 ? 1 : 2, juce::dontSendNotification);
+            lpPerfSection.addChildComponent(lpTgDamp[i]);
+            lpTgDamp[i].onChange = [this, tg, i]{ sendPerfParam(tg, "FDAMP", lpTgDamp[i].getSelectedId() == 2 ? 1 : 0); };
+        }
+        leftPanelTab.addAndMakeVisible(lpPerfSection);
+    }
 
     // Mode select buttons: non-momentary radio group
     fpModeGroup[0] = &fpPerformSelect;
@@ -950,6 +1055,53 @@ void MainComponent::resized()
         lcdDisplay.setBounds(
             juce::roundToInt(r.x / scale), juce::roundToInt(r.y / scale),
             juce::roundToInt(r.w / scale), juce::roundToInt(r.h / scale));
+    }
+
+    // ── Left Panel inline performance section layout ──
+    {
+        using namespace PanelLayout;
+        auto* disp = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay();
+        float scale = disp ? (float)disp->scale : 1.0f;
+        const int panelBottom = juce::roundToInt(kPanelHeight / scale);
+        const int sectionW    = juce::roundToInt(kPanelWidth  / scale);
+        const int sectionH    = juce::jmax(0, getHeight() - tabs.getTabBarDepth() - panelBottom - 4);
+        lpPerfSection.setBounds(0, panelBottom + 4, sectionW, sectionH);
+
+        const int colW[] = { 30, 50, 120, 60, 70, 70, 60, 60, 60, 70, 55 };
+        const int rowH = 28, hdrH = 22, gap = 2;
+
+        auto area = lpPerfSection.getLocalBounds().reduced(8);
+        auto hdrRow = area.removeFromTop(hdrH);
+        lpHdrTg.setBounds(hdrRow.removeFromLeft(colW[0]));       hdrRow.removeFromLeft(gap);
+        // lpHdrOnOff.setBounds(hdrRow.removeFromLeft(colW[1])); hdrRow.removeFromLeft(gap);  // hidden: panel buttons
+        // lpHdrPrst.setBounds(hdrRow.removeFromLeft(colW[2]));  hdrRow.removeFromLeft(gap);  // hidden: LCD line 0
+        lpHdrChan.setBounds(hdrRow.removeFromLeft(colW[3]));      hdrRow.removeFromLeft(gap);
+        lpHdrLow.setBounds(hdrRow.removeFromLeft(colW[4]));       hdrRow.removeFromLeft(gap);
+        lpHdrHigh.setBounds(hdrRow.removeFromLeft(colW[5]));      hdrRow.removeFromLeft(gap);
+        lpHdrDet.setBounds(hdrRow.removeFromLeft(colW[6]));       hdrRow.removeFromLeft(gap);
+        lpHdrShft.setBounds(hdrRow.removeFromLeft(colW[7]));      hdrRow.removeFromLeft(gap);
+        lpHdrVol.setBounds(hdrRow.removeFromLeft(colW[8]));       hdrRow.removeFromLeft(gap);
+        lpHdrOut.setBounds(hdrRow.removeFromLeft(colW[9]));       hdrRow.removeFromLeft(gap);
+        lpHdrDamp.setBounds(hdrRow.removeFromLeft(colW[10]));
+        area.removeFromTop(2);
+
+        // All 8 rows occupy the same slot — only the selected one is visible at a time.
+        auto rowSlot = area.removeFromTop(rowH);
+        for (int i = 0; i < 8; ++i)
+        {
+            auto row = rowSlot;
+            lpTgNum[i].setBounds(row.removeFromLeft(colW[0]));       row.removeFromLeft(gap);
+            // lpTgOnOff[i].setBounds(row.removeFromLeft(colW[1]));  row.removeFromLeft(gap);  // hidden: panel buttons
+            // lpTgPreset[i].setBounds(row.removeFromLeft(colW[2])); row.removeFromLeft(gap);  // hidden: LCD line 0
+            lpTgRxCh[i].setBounds(row.removeFromLeft(colW[3]));      row.removeFromLeft(gap);
+            lpTgNoteLow[i].setBounds(row.removeFromLeft(colW[4]));  row.removeFromLeft(gap);
+            lpTgNoteHigh[i].setBounds(row.removeFromLeft(colW[5])); row.removeFromLeft(gap);
+            lpTgDetune[i].setBounds(row.removeFromLeft(colW[6]));   row.removeFromLeft(gap);
+            lpTgShift[i].setBounds(row.removeFromLeft(colW[7]));    row.removeFromLeft(gap);
+            lpTgVol[i].setBounds(row.removeFromLeft(colW[8]));      row.removeFromLeft(gap);
+            lpTgOut[i].setBounds(row.removeFromLeft(colW[9]));      row.removeFromLeft(gap);
+            lpTgDamp[i].setBounds(row.removeFromLeft(colW[10]));
+        }
     }
 
     // ── Settings tab layout ──
@@ -1611,6 +1763,8 @@ void MainComponent::sendPerfParam(int tg1to8, const juce::String& paramName, int
 
     if (paramName == "TG")
         updateLcdFromConfig();
+    else if ((paramName == "PRESET" || paramName == "RXCH") && i == selectedTg)
+        setLcdLine(0, buildVoiceSelectLine());
 
     perfStatus.setText(ok ? (paramName + juce::String(tg1to8) + " = " + juce::String(userValue) + " sent")
                           : "Send failed", juce::dontSendNotification);
@@ -1670,10 +1824,51 @@ juce::String MainComponent::buildLinkLine() const
     return line;
 }
 
+juce::String MainComponent::buildVoiceSelectLine() const
+{
+    if (selectedTg < 0) return {};
+
+    midi::ConfigState cfg;
+    midi::Config::load(cfg);
+    const auto& t = cfg.tg[selectedTg];
+
+    // Patch name from presetBankNames (already without I0n prefix); fallback to slot string
+    int slot = midi::presetToVnum(t.preset);  // 1-32
+    juce::String name;
+    if (slot >= 1 && slot - 1 < cfg.presetBankNames.size())
+        name = cfg.presetBankNames[slot - 1];
+    if (name.isEmpty() || name == "empty")
+        name = t.preset;  // e.g. "I01"
+    name = name.substring(0, 10).paddedRight(' ', 10);
+
+    // Channel: " 1"–" 9" (leading space for single digit), "10"–"16", or " A" for Omni
+    int ch = midi::rxchFromString(t.rxch);  // 1–16 or 17 (Omni)
+    juce::String chStr = (ch == 17) ? " A"
+                       : (ch  < 10) ? (" " + juce::String(ch))
+                                    : juce::String(ch);
+
+    return "VOICE SELECT       " + name + " Rch=" + chStr;
+}
+
 void MainComponent::updateLcdFromConfig()
 {
-    setLcdLine(0, "");             // reserved — content TBD once dependent features are implemented
+    setLcdLine(0, buildVoiceSelectLine());
     setLcdLine(1, buildLinkLine());
+}
+
+void MainComponent::setLpRowVisible(int tg0based, bool visible)
+{
+    lpTgNum[tg0based].setVisible(visible);
+    lpTgOnOff[tg0based].setVisible(visible);
+    lpTgPreset[tg0based].setVisible(visible);
+    lpTgRxCh[tg0based].setVisible(visible);
+    lpTgNoteLow[tg0based].setVisible(visible);
+    lpTgNoteHigh[tg0based].setVisible(visible);
+    lpTgDetune[tg0based].setVisible(visible);
+    lpTgShift[tg0based].setVisible(visible);
+    lpTgVol[tg0based].setVisible(visible);
+    lpTgOut[tg0based].setVisible(visible);
+    lpTgDamp[tg0based].setVisible(visible);
 }
 
 void MainComponent::refreshPerfPresetDropdowns()
@@ -1683,8 +1878,10 @@ void MainComponent::refreshPerfPresetDropdowns()
 
     for (int i = 0; i < 8; ++i)
     {
-        const int currentId = perfTgPreset[i].getSelectedId();
+        const int perfId = perfTgPreset[i].getSelectedId();
+        const int lpId   = lpTgPreset[i].getSelectedId();
         perfTgPreset[i].clear(juce::dontSendNotification);
+        lpTgPreset[i].clear(juce::dontSendNotification);
         for (int p = 1; p <= 32; ++p)
         {
             juce::String label = "I" + juce::String(p).paddedLeft('0', 2);
@@ -1695,7 +1892,9 @@ void MainComponent::refreshPerfPresetDropdowns()
                     label += " " + name;
             }
             perfTgPreset[i].addItem(label, p);
+            lpTgPreset[i].addItem(label, p);
         }
-        perfTgPreset[i].setSelectedId(currentId, juce::dontSendNotification);
+        perfTgPreset[i].setSelectedId(perfId, juce::dontSendNotification);
+        lpTgPreset[i].setSelectedId(lpId, juce::dontSendNotification);
     }
 }

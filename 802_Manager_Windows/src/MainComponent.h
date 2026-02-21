@@ -253,6 +253,7 @@ private:
     void sendPerfParam(int tg1to8, const juce::String& paramName, int userValue);
     void updatePerfControlsFromConfig();
     void refreshPerfPresetDropdowns();
+    void setLpRowVisible(int tg0based, bool visible);
 
     // Column header labels
     juce::Label perfHdrTg   { {}, "#" };
@@ -281,13 +282,43 @@ private:
     juce::ComboBox  perfTgDamp[8];
     juce::Label     perfStatus;
 
+    // Left Panel inline performance section (independent instances of all TG rows)
+    struct LpPerfSection : public juce::Component
+    {
+        void paint(juce::Graphics& g) override { g.fillAll(juce::Colour(0xFF1E1E1E)); }
+    };
+    LpPerfSection lpPerfSection;
+    juce::Label lpHdrTg   { {}, "#" };
+    juce::Label lpHdrOnOff{ {}, "TG" };
+    juce::Label lpHdrPrst { {}, "Preset" };
+    juce::Label lpHdrChan { {}, "Chan" };
+    juce::Label lpHdrLow  { {}, "Low" };
+    juce::Label lpHdrHigh { {}, "High" };
+    juce::Label lpHdrDet  { {}, "Det" };
+    juce::Label lpHdrShft { {}, "Shift" };
+    juce::Label lpHdrVol  { {}, "Vol" };
+    juce::Label lpHdrOut  { {}, "Out" };
+    juce::Label lpHdrDamp { {}, "Damp" };
+    juce::Label    lpTgNum[8];
+    juce::ComboBox lpTgOnOff[8];
+    juce::ComboBox lpTgPreset[8];
+    juce::ComboBox lpTgRxCh[8];
+    juce::Slider   lpTgNoteLow[8];
+    juce::Slider   lpTgNoteHigh[8];
+    juce::Slider   lpTgDetune[8];
+    juce::Slider   lpTgShift[8];
+    juce::Slider   lpTgVol[8];
+    juce::ComboBox lpTgOut[8];
+    juce::ComboBox lpTgDamp[8];
+
     // Front Panel tab — maps to TX802-Panel-Right.png
     // See PanelLayout::Right for pixel positions of physical buttons.
     FrontPanelTab frontPanelTab;
     LeftPanelTab  leftPanelTab;
     LcdDisplay    lcdDisplay;
     void setLcdLine(int line0or1, const juce::String& text);
-    juce::String  buildLinkLine() const;  // 40-char line 2: I0X (On) or <-- (Off) per TG; TG1 always I01
+    juce::String  buildLinkLine() const;       // LCD line 1: I0X (On) or <-- (Off) per TG; TG1 always I01
+    juce::String  buildVoiceSelectLine() const; // LCD line 0: VOICE SELECT ... Rch= n for selected TG
     void          updateLcdFromConfig(); // line 0: blank (reserved); line 1: buildLinkLine()
     void deactivateModeButtons();
     // Mode select buttons (radio: stays dark until another is pressed)
