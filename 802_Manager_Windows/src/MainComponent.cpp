@@ -138,30 +138,10 @@ MainComponent::MainComponent()
     midi::StartupLog::write("=== MainComponent CTOR BEGIN ===");
     addAndMakeVisible(tabs);
 
-    midi::StartupLog::write("CTOR: Preset Browser tab setup");
-    // ── Preset Browser tab ──
-    presetBrowserTab.addAndMakeVisible(openBankButton);
-    presetBrowserTab.addAndMakeVisible(openVoiceButton);
-    presetBrowserTab.addAndMakeVisible(filterLabel);
-    presetBrowserTab.addAndMakeVisible(filterEdit);
-    presetBrowserTab.addAndMakeVisible(ratingLabel);
-    presetBrowserTab.addAndMakeVisible(ratingFilterCombo);
+    midi::StartupLog::write("CTOR: Bank + DB setup");
+    // ── Bank model + preset database ──
     rpSettingsSection.addAndMakeVisible(selectDbButton);
     rpSettingsSection.addAndMakeVisible(dbPathLabel);
-    presetBrowserTab.addAndMakeVisible(presetHeader);
-    presetBrowserTab.addAndMakeVisible(presetList);
-    presetBrowserTab.addAndMakeVisible(bankList);
-    presetBrowserTab.addAndMakeVisible(bankHeader);
-    presetBrowserTab.addAndMakeVisible(initBankButton);
-    presetBrowserTab.addAndMakeVisible(randomizeBankButton);
-    presetBrowserTab.addAndMakeVisible(sendBankButton);
-    bankNote.setFont(juce::Font(11.0f));
-    bankNote.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
-    presetBrowserTab.addAndMakeVisible(bankNote);
-
-    initBankButton.onClick = [this]{ initBank(); };
-    randomizeBankButton.onClick = [this]{ randomizeBank(); };
-    sendBankButton.onClick = [this]{ sendBankToDevice(); };
 
     // Read patchesToSend and preset bank names from config
     midi::ConfigState cfgSlots; midi::Config::load(cfgSlots);
@@ -179,20 +159,8 @@ MainComponent::MainComponent()
         if (name.isNotEmpty() && name != "empty")
             bankModel.setSlotName(i, name);
     }
-    bankList.setModel(&bankModel);
-    bankList.setMultipleSelectionEnabled(false);
-    bankList.setRowHeight(22);
-    bankList.setColour(juce::ListBox::backgroundColourId, juce::Colours::black.withAlpha(0.15f));
-    presetList.addMouseListener(this, true);
-
-    presetBrowserTab.addAndMakeVisible(firstPage);
-    presetBrowserTab.addAndMakeVisible(prevPage);
-    presetBrowserTab.addAndMakeVisible(nextPage);
-    presetBrowserTab.addAndMakeVisible(lastPage);
-    presetBrowserTab.addAndMakeVisible(statusLabel);
 
     midi::StartupLog::write("CTOR: Opening DB");
-    // Open DB
     midi::ConfigState cfgInitial; midi::Config::load(cfgInitial);
     juce::File dbFile = cfgInitial.dbPath.isNotEmpty() ? juce::File(cfgInitial.dbPath)
                                                        : juce::File::getCurrentWorkingDirectory().getChildFile("config/dx_preset_library.sqlite3");
@@ -200,63 +168,11 @@ MainComponent::MainComponent()
     presetsDb->open();
     dbPathLabel.setText(dbFile.getFullPathName(), juce::dontSendNotification);
 
-    // Measure average character width
-    {
-        juce::Font f(13.0f);
-        const juce::String sampleChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        const float sampleWidth = f.getStringWidthFloat(sampleChars);
-        avgCharWidthPx = (sampleChars.isNotEmpty() ? sampleWidth / (float) sampleChars.length() : 8.0f);
-        colIdWidth = juce::jmax(20, (int) juce::roundToInt(colIdWidth - 2 * avgCharWidthPx));
-        colNameWidth = juce::jmax(40, (int) juce::roundToInt(colNameWidth - 3 * avgCharWidthPx));
-        colCategoryWidth = colNameWidth;
-        colCommentsWidth = colCategoryWidth * 2;
-        colRatingWidth = 48;
-    }
-
-    auto refreshPage = [this]
-    {
-        juce::String err;
-        int total = 0;
-        int offset = (currentPage - 1) * pageSize;
-        auto rows = presetsDb->queryPresets(filterEdit.getText(), ratingFilterCombo.getText(), pageSize, offset, total, err);
-        totalRows = total;
-        currentRows = rows;
-        presetNames.clear();
-        for (int i = 0; i < rows.size(); ++i) presetNames.add("");
-        presetList.updateContent();
-        presetList.setRowHeight(22);
-        presetList.repaint();
-        presetHeader.repaint();
-        statusLabel.setText("Rows: " + juce::String(totalRows) + "  Page " + juce::String(currentPage), juce::dontSendNotification);
-        repaint();
-    };
-
-    firstPage.onClick = [this, refreshPage]{ currentPage = 1; refreshPage(); };
-    prevPage.onClick  = [this, refreshPage]{ if (currentPage > 1) { --currentPage; refreshPage(); } };
-    nextPage.onClick  = [this, refreshPage]{
-        int maxPage = juce::jmax(1, (totalRows + pageSize - 1) / pageSize);
-        if (currentPage < maxPage) { ++currentPage; refreshPage(); }
-    };
-    lastPage.onClick  = [this, refreshPage]{
-        int maxPage = juce::jmax(1, (totalRows + pageSize - 1) / pageSize);
-        currentPage = maxPage; refreshPage();
-    };
-    filterEdit.onTextChange = [this, refreshPage]{ currentPage = 1; refreshPage(); };
-    ratingFilterCombo.onChange = [this, refreshPage]{ currentPage = 1; refreshPage(); };
-
-    {
-        ratingFilterCombo.clear();
-        ratingFilterCombo.addItem("Any", 1);
-        ratingFilterCombo.addItem("Unrated", 2);
-        for (int r = 1; r <= 10; ++r) ratingFilterCombo.addItem(juce::String(r), 100 + r);
-        ratingFilterCombo.setText("Any", juce::dontSendNotification);
-    }
-
-    selectDbButton.onClick = [this, refreshPage]
+    selectDbButton.onClick = [this]
     {
         dbFileChooser.reset(new juce::FileChooser("Select preset DB file", juce::File(), "*.sqlite3;*.db;*"));
         dbFileChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                                   [this, refreshPage](const juce::FileChooser& ch)
+                                   [this](const juce::FileChooser& ch)
         {
             auto f = ch.getResult();
             if (f.existsAsFile())
@@ -266,10 +182,10 @@ MainComponent::MainComponent()
                 {
                     dbPathLabel.setText(f.getFullPathName(), juce::dontSendNotification);
                     midi::ConfigState cfg; midi::Config::load(cfg); cfg.dbPath = f.getFullPathName(); midi::Config::save(cfg);
-                    currentPage = 1; refreshPage();
+                    lpRefreshPresets();
                 }
                 else
-                    statusLabel.setText("Failed to open DB", juce::dontSendNotification);
+                    midiStatusBox.setText("Failed to open DB");
             }
         });
     };
@@ -668,8 +584,6 @@ MainComponent::MainComponent()
 
     midi::StartupLog::write("CTOR: Wiring callbacks");
     // ── Wiring ──
-    openBankButton.onClick = [this] { openDx7Bank(); };
-    openVoiceButton.onClick = [this] { openSingleVoice(); };
     refreshMidiButton.onClick = [this] { rebuildMidiOutputs(); };
     rebootButton.onClick = [this] { sendReboot(); };
     playTest.onClick = [this]
@@ -906,8 +820,6 @@ MainComponent::MainComponent()
             bankSlotIds.resize(visibleSlots);
             for (int i = bankSlotIds.size(); i < visibleSlots; ++i) bankSlotIds.set(i, 0);
             bankModel.setNumSlots(visibleSlots);
-            bankList.updateContent();
-            bankList.repaint();
             lpBankList.updateContent();
             lpBankList.repaint();
         }
@@ -943,7 +855,6 @@ MainComponent::MainComponent()
     tabs.addTab("Left Panel",           juce::Colours::darkgrey, &leftPanelTab,           false);
     tabs.addTab("Right Panel",          juce::Colours::darkgrey, &frontPanelTab,          false);
     tabs.addTab("Performance Editor",   juce::Colours::darkgrey, &performanceEditorTab,   false);
-    tabs.addTab("Preset Browser",       juce::Colours::darkgrey, &presetBrowserTab,       false);
     tabs.setCurrentTabIndex(0);
 
     midi::StartupLog::write("CTOR: setSize + refreshPage");
@@ -952,7 +863,6 @@ MainComponent::MainComponent()
         float scale = disp ? (float)disp->scale : 1.0f;
         setSize(juce::roundToInt(PanelLayout::kPanelWidth / scale), 964);
     }
-    refreshPage();
     midi::StartupLog::write("=== MainComponent CTOR END ===");
 }
 
@@ -968,63 +878,6 @@ void MainComponent::resized()
     tabs.setBounds(area);
     tabs.resized();
     midi::StartupLog::write("resized() tabs done");
-
-    // ── Preset Browser layout ──
-    auto pb = presetBrowserTab.getLocalBounds().reduced(8);
-    auto pbTop = pb.removeFromTop(28);
-    openBankButton.setBounds(pbTop.removeFromLeft(180));
-    pbTop.removeFromLeft(8);
-    openVoiceButton.setBounds(pbTop.removeFromLeft(180));
-    pb.removeFromTop(4);
-
-    auto pbFilter = pb.removeFromTop(24);
-    filterLabel.setBounds(pbFilter.removeFromLeft(60));
-    filterEdit.setBounds(pbFilter.removeFromLeft(200));
-    pbFilter.removeFromLeft(12);
-    ratingLabel.setBounds(pbFilter.removeFromLeft(60));
-    ratingFilterCombo.setBounds(pbFilter.removeFromLeft(100));
-    pb.removeFromTop(4);
-
-    auto pbDb = pb.removeFromTop(22);
-    // Navigation buttons
-    {
-        auto navRow1 = pbDb.removeFromLeft(200);
-        firstPage.setBounds(navRow1.removeFromLeft(48));
-        navRow1.removeFromLeft(4);
-        prevPage.setBounds(navRow1.removeFromLeft(48));
-        navRow1.removeFromLeft(4);
-        nextPage.setBounds(navRow1.removeFromLeft(48));
-        navRow1.removeFromLeft(4);
-        lastPage.setBounds(navRow1.removeFromLeft(48));
-    }
-    pbDb.removeFromLeft(8);
-    statusLabel.setBounds(pbDb);
-    pb.removeFromTop(4);
-
-    // Left list (presets) + Right list (bank)
-    {
-        const int bankWidth = 300;
-        auto headerArea = pb.removeFromTop(20);
-        auto leftWidth = pb.getWidth() - bankWidth - 12;
-        auto headerLeft = headerArea.removeFromLeft(leftWidth);
-        presetHeader.setBounds(headerLeft);
-        headerArea.removeFromLeft(12);
-        auto headerRight = headerArea;
-        bankHeader.setBounds(headerRight.removeFromLeft(60));
-        headerRight.removeFromLeft(6);
-        initBankButton.setBounds(headerRight.removeFromLeft(50).withHeight(18));
-        headerRight.removeFromLeft(4);
-        randomizeBankButton.setBounds(headerRight.removeFromLeft(65).withHeight(18));
-        headerRight.removeFromLeft(4);
-        sendBankButton.setBounds(headerRight.removeFromLeft(50).withHeight(18));
-
-        auto leftArea = pb.removeFromLeft(leftWidth);
-        presetList.setBounds(leftArea);
-        pb.removeFromLeft(12);
-        auto bankNoteArea = pb.removeFromBottom(18);
-        bankNote.setBounds(bankNoteArea);
-        bankList.setBounds(pb);
-    }
 
     // ── Performance Editor layout ──
     {
@@ -1297,150 +1150,6 @@ void MainComponent::resized()
     }
 }
 
-// ── ListBoxModel (Preset Browser) ──
-
-int MainComponent::getNumRows()
-{
-    return presetNames.size();
-}
-
-void MainComponent::paintListBoxItem(int row, juce::Graphics& g, int width, int height, bool selected)
-{
-    if (! juce::isPositiveAndBelow(row, currentRows.size())) return;
-    auto r = currentRows[(int) row];
-
-    if (selected)
-        g.fillAll(juce::Colours::steelblue);
-    else
-        g.fillAll(row % 2 == 0 ? juce::Colours::transparentBlack : juce::Colour(0x10ffffff));
-
-    g.setFont(juce::Font(13.0f));
-    int x = 6;
-
-    // ID
-    g.setColour(juce::Colours::lightgrey);
-    g.drawText(juce::String(r.id), x, 0, colIdWidth, height, juce::Justification::centredLeft);
-    x += colIdWidth;
-    g.setColour(juce::Colours::grey.withAlpha(0.3f));
-    g.drawVerticalLine(x - 1, 0.0f, (float) height);
-
-    // Patch name
-    g.setColour(juce::Colours::white);
-    g.drawText(r.presetName, x, 0, colNameWidth, height, juce::Justification::centredLeft);
-    x += colNameWidth;
-    g.setColour(juce::Colours::grey.withAlpha(0.3f));
-    g.drawVerticalLine(x - 1, 0.0f, (float) height);
-
-    // Category
-    g.setColour(juce::Colours::lightgrey);
-    g.drawText(r.category, x, 0, colCategoryWidth, height, juce::Justification::centredLeft);
-    x += colCategoryWidth;
-    g.setColour(juce::Colours::grey.withAlpha(0.3f));
-    g.drawVerticalLine(x - 1, 0.0f, (float) height);
-
-    // Comments (optional)
-    if (showCommentsColumn)
-    {
-        g.setColour(juce::Colours::lightgrey);
-        g.drawText(r.comments, x, 0, colCommentsWidth, height, juce::Justification::centredLeft);
-        x += colCommentsWidth;
-        g.setColour(juce::Colours::grey.withAlpha(0.3f));
-        g.drawVerticalLine(x - 1, 0.0f, (float) height);
-    }
-
-    // Rating digit
-    g.setColour(juce::Colours::yellow);
-    g.drawText(r.rating > 0 ? juce::String(r.rating) : juce::String(""), x, 0, colRatingWidth - 16, height, juce::Justification::centredLeft);
-
-    // Up/down triangles for rating
-    {
-        const float arrowX = (float)(x + colRatingWidth - 16);
-        const float midY = (float) height * 0.5f;
-        // Up triangle
-        g.setColour(juce::Colours::lightgrey);
-        juce::Path up;
-        up.addTriangle(arrowX + 4.0f, midY - 2.0f, arrowX + 10.0f, midY - 2.0f, arrowX + 7.0f, midY - 8.0f);
-        g.fillPath(up);
-        // Down triangle
-        juce::Path dn;
-        dn.addTriangle(arrowX + 4.0f, midY + 2.0f, arrowX + 10.0f, midY + 2.0f, arrowX + 7.0f, midY + 8.0f);
-        g.fillPath(dn);
-    }
-    x += colRatingWidth;
-    g.setColour(juce::Colours::grey.withAlpha(0.3f));
-    g.drawVerticalLine(x - 1, 0.0f, (float) height);
-}
-
-void MainComponent::selectedRowsChanged(int) {}
-
-juce::Component* MainComponent::refreshComponentForRow(int, bool, juce::Component* existing)
-{
-    // We use paintListBoxItem + click handling, no per-row components needed
-    return existing;
-}
-
-void MainComponent::listBoxItemClicked(int row, const juce::MouseEvent& e)
-{
-    if (! juce::isPositiveAndBelow(row, currentRows.size())) return;
-    auto r = currentRows[(int) row];
-
-    // Check if click is in the rating arrow area
-    auto rowBounds = presetList.getRowPosition(row, true);
-    int ratingX = colIdWidth + colNameWidth + colCategoryWidth + (showCommentsColumn ? colCommentsWidth : 0);
-    int relX = e.getPosition().x;
-    if (relX >= ratingX + colRatingWidth - 16 && relX < ratingX + colRatingWidth)
-    {
-        int relY = e.getPosition().y - rowBounds.getY();
-        int midY = rowBounds.getHeight() / 2;
-        if (relY < midY)
-            changeRatingForRow(row, 1);
-        else
-            changeRatingForRow(row, -1);
-        return;
-    }
-
-    // Otherwise send the preset to device
-    const int presetId = r.id;
-    if (presetId <= 0) { statusLabel.setText("Invalid selection", juce::dontSendNotification); return; }
-    if (presetsDb)
-    {
-        juce::MemoryBlock syx; juce::String err;
-        if (! midiSender || ! midiSender->isOpen())
-        {
-            statusLabel.setText("Select MIDI Output first", juce::dontSendNotification);
-            return;
-        }
-        if (presetsDb->getSysexById(presetId, syx, err))
-        {
-            midiSender->sendSysex(syx);
-            midi::ConfigState cfg; midi::Config::load(cfg);
-            midi::Tx802HighLevel::sendButtonByName(*midiSender, "VOICE_SELECT", (juce::uint8) cfg.deviceId);
-            statusLabel.setText("Sent preset ID " + juce::String(presetId), juce::dontSendNotification);
-        }
-        else
-            statusLabel.setText("DB fetch failed: " + err, juce::dontSendNotification);
-    }
-}
-
-// ── Preset Header ──
-void MainComponent::PresetHeader::paint(juce::Graphics& g)
-{
-    auto area = getLocalBounds();
-    g.fillAll(juce::Colours::darkgrey.darker(0.3f));
-    g.setColour(juce::Colours::white);
-
-    int x = 6;
-    const int h = area.getHeight();
-    g.drawText("ID",       x, 0, owner.colIdWidth,       h, juce::Justification::centredLeft); x += owner.colIdWidth;
-    g.drawText("Patch",    x, 0, owner.colNameWidth,     h, juce::Justification::centredLeft); x += owner.colNameWidth;
-    g.drawText("Category", x, 0, owner.colCategoryWidth, h, juce::Justification::centredLeft); x += owner.colCategoryWidth;
-    if (owner.showCommentsColumn)
-    {
-        g.drawText("Comments", x, 0, owner.colCommentsWidth, h, juce::Justification::centredLeft);
-        x += owner.colCommentsWidth;
-    }
-    g.drawText("Rt", x, 0, owner.colRatingWidth, h, juce::Justification::centredLeft);
-}
 
 // ── LP Preset Browser — model + header ──
 
@@ -1483,23 +1192,6 @@ void MainComponent::LpPresetHeader::paint(juce::Graphics& g)
     g.drawText("Category", x0 + idW + nameW, 0, getWidth() - x0 - idW - nameW, h, juce::Justification::centredLeft);
 }
 
-// ── Rating change ──
-void MainComponent::changeRatingForRow(int rowIndex, int delta)
-{
-    if (! juce::isPositiveAndBelow(rowIndex, currentRows.size())) return;
-    auto& r = currentRows.getReference(rowIndex);
-    int newRating = juce::jlimit(0, 10, r.rating + delta);
-    if (newRating == r.rating) return;
-    r.rating = newRating;
-    if (presetsDb)
-    {
-        juce::String err;
-        presetsDb->updateRating(r.id, newRating, err);
-        if (err.isNotEmpty())
-            statusLabel.setText("Rating update failed: " + err, juce::dontSendNotification);
-    }
-    presetList.repaintRow(rowIndex);
-}
 
 // ── Bank slot DnD components ──
 
@@ -1534,16 +1226,7 @@ void MainComponent::BankSlotComponent::itemDropped(const SourceDetails& d)
 {
     over = false; repaint();
     auto desc = d.description.toString();
-    if (desc.startsWith("preset:"))
-    {
-        int srcRow = desc.fromFirstOccurrenceOf("preset:", false, false).getIntValue();
-        if (juce::isPositiveAndBelow(srcRow, owner.currentRows.size()))
-        {
-            auto r = owner.currentRows[(int) srcRow];
-            owner.setBankSlotFromPreset(index, r.id, r.presetName);
-        }
-    }
-    else if (desc.startsWith("bank:"))
+    if (desc.startsWith("bank:"))
     {
         int srcIdx = desc.fromFirstOccurrenceOf("bank:", false, false).getIntValue();
         owner.moveBankSlot(srcIdx, index);
@@ -1568,24 +1251,6 @@ juce::Component* MainComponent::BankModel::refreshComponentForRow(int rowNumber,
     return c;
 }
 
-// ── Drag from preset list ──
-void MainComponent::mouseDown(const juce::MouseEvent& e) { dragStartRow = presetList.getRowContainingPosition(e.getEventRelativeTo(&presetList).getPosition().x, e.getEventRelativeTo(&presetList).getPosition().y); dragging = false; }
-void MainComponent::mouseUp(const juce::MouseEvent&) { dragStartRow = -1; dragging = false; }
-void MainComponent::mouseDrag(const juce::MouseEvent& e)
-{
-    if (dragStartRow >= 0 && !dragging && e.getDistanceFromDragStart() > 5)
-    {
-        dragging = true;
-        beginDragFromPresetRow(dragStartRow);
-    }
-}
-void MainComponent::beginDragFromPresetRow(int rowIndex)
-{
-    if (! juce::isPositiveAndBelow(rowIndex, currentRows.size())) return;
-    juce::Image dragImg(juce::Image::ARGB, 160, 20, true);
-    { juce::Graphics ig(dragImg); ig.setColour(juce::Colours::white.withAlpha(0.6f)); ig.fillAll(); ig.setColour(juce::Colours::black); ig.drawText(currentRows[rowIndex].presetName, 4, 0, 152, 20, juce::Justification::centredLeft); }
-    startDragging(juce::var(juce::String("preset:") + juce::String(rowIndex)), &presetList, dragImg, true);
-}
 
 // ── Bank helpers ──
 void MainComponent::setBankSlotFromPreset(int slotIndex, int presetId, const juce::String& name)
@@ -1593,8 +1258,6 @@ void MainComponent::setBankSlotFromPreset(int slotIndex, int presetId, const juc
     if (! juce::isPositiveAndBelow(slotIndex, bankSlotIds.size())) return;
     bankSlotIds.set(slotIndex, presetId);
     bankModel.setSlotName(slotIndex, name);
-    bankList.updateContent();
-    bankList.repaintRow(slotIndex);
     lpBankList.updateContent();
     lpBankList.repaintRow(slotIndex);
 }
@@ -1608,8 +1271,6 @@ void MainComponent::moveBankSlot(int fromIndex, int toIndex)
     bankModel.setSlotName(fromIndex, bankModel.getSlotName(toIndex));
     bankSlotIds.set(toIndex, fromId);
     bankModel.setSlotName(toIndex, fromName);
-    bankList.updateContent();
-    bankList.repaint();
     lpBankList.updateContent();
     lpBankList.repaint();
 }
@@ -1621,8 +1282,6 @@ void MainComponent::initBank()
         bankSlotIds.set(i, 0);
         bankModel.setSlotName(i, "empty");
     }
-    bankList.updateContent();
-    bankList.repaint();
     lpBankList.updateContent();
     lpBankList.repaint();
 }
@@ -1631,8 +1290,8 @@ void MainComponent::randomizeBank()
 {
     if (! presetsDb) return;
     juce::String err; int total = 0;
-    auto all = presetsDb->queryPresets(filterEdit.getText(), ratingFilterCombo.getText(), 99999, 0, total, err);
-    if (all.isEmpty()) { statusLabel.setText("No presets to randomize from", juce::dontSendNotification); return; }
+    auto all = presetsDb->queryPresets("", "", 99999, 0, total, err);
+    if (all.isEmpty()) return;
 
     // Shuffle indices
     juce::Array<int> indices;
@@ -1658,17 +1317,14 @@ void MainComponent::randomizeBank()
             bankModel.setSlotName(slot, "empty");
         }
     }
-    bankList.updateContent();
-    bankList.repaint();
     lpBankList.updateContent();
     lpBankList.repaint();
-    statusLabel.setText("Randomized " + juce::String(juce::jmin(visibleSlots, all.size())) + " presets", juce::dontSendNotification);
 }
 
 void MainComponent::sendBankToDevice()
 {
-    if (! midiSender || ! midiSender->isOpen()) { statusLabel.setText("Open a MIDI output first", juce::dontSendNotification); return; }
-    if (! presetsDb) { statusLabel.setText("No DB", juce::dontSendNotification); return; }
+    if (! midiSender || ! midiSender->isOpen()) { midiStatusBox.setText("Open a MIDI output first"); return; }
+    if (! presetsDb) { midiStatusBox.setText("No DB"); return; }
 
     midi::ConfigState cfg;
     midi::Config::load(cfg);
@@ -1688,7 +1344,7 @@ void MainComponent::sendBankToDevice()
         {
             juce::MemoryBlock syx; juce::String err; juce::String msg; juce::MemoryBlock v155;
             if (! presetsDb->getSysexById(id, syx, err) || ! core::Dx7Utils::verifySingleVoiceSysex(syx, msg, v155))
-            { statusLabel.setText("Invalid slot " + juce::String(i+1) + ": " + (err.isNotEmpty()?err:msg), juce::dontSendNotification); return; }
+            { midiStatusBox.setText("Invalid slot " + juce::String(i+1) + ": " + (err.isNotEmpty()?err:msg)); return; }
             v128 = core::Dx7Utils::packSingleToBankVoice(v155);
         }
         else
@@ -1709,7 +1365,7 @@ void MainComponent::sendBankToDevice()
     {
         juce::String msg;
         if (! core::Dx7Utils::isValidDx7Bank(bank, msg))
-            statusLabel.setText("Bank validate failed: " + msg, juce::dontSendNotification);
+            midiStatusBox.setText("Bank validate failed: " + msg);
     }
 
     {
@@ -1735,7 +1391,7 @@ void MainComponent::sendBankToDevice()
         bankSendThread.reset();
     }
 
-    statusLabel.setText("Sending...", juce::dontSendNotification);
+    midiStatusBox.setText("Sending...");
 
     bankSendThread = std::make_unique<BankSendThread>(
         *midiSender, deviceId, std::move(bank), isPartial, patchCount,
@@ -1744,10 +1400,9 @@ void MainComponent::sendBankToDevice()
         {
             juce::MessageManager::callAsync([this, isPartial, count]
             {
-                statusLabel.setText(
+                midiStatusBox.setText(
                     isPartial ? "Sent " + juce::String(count) + " voices (partial transfer)"
-                              : "Sent 32-voice bank",
-                    juce::dontSendNotification);
+                              : "Sent 32-voice bank");
             });
         });
     bankSendThread->startThread();
@@ -1760,48 +1415,6 @@ void MainComponent::deactivateModeButtons()
     for (auto* b : fpModeGroup) b->setActive(false);
 }
 
-void MainComponent::openDx7Bank()
-{
-    fileChooser.reset(new juce::FileChooser("Open DX7 Bank", juce::File(), "*.syx"));
-    fileChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-        [this](const juce::FileChooser& fc)
-    {
-        auto f = fc.getResult();
-        if (! f.existsAsFile()) return;
-        juce::MemoryBlock data;
-        f.loadFileAsData(data);
-        juce::String msg;
-        if (core::Dx7Utils::isValidDx7Bank(data, msg))
-        {
-            statusLabel.setText("Valid bank: " + f.getFileName(), juce::dontSendNotification);
-        }
-        else
-            statusLabel.setText("Invalid bank: " + msg, juce::dontSendNotification);
-    });
-}
-
-void MainComponent::openSingleVoice()
-{
-    fileChooser.reset(new juce::FileChooser("Open Single Voice", juce::File(), "*.syx"));
-    fileChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-        [this](const juce::FileChooser& fc)
-    {
-        auto f = fc.getResult();
-        if (! f.existsAsFile()) return;
-        juce::MemoryBlock data;
-        f.loadFileAsData(data);
-        juce::String msg; juce::MemoryBlock v155;
-        if (core::Dx7Utils::verifySingleVoiceSysex(data, msg, v155))
-            statusLabel.setText("Valid single voice", juce::dontSendNotification);
-        else
-            statusLabel.setText("Invalid: " + msg, juce::dontSendNotification);
-    });
-}
-
-void MainComponent::setStatus(const juce::String& text)
-{
-    statusLabel.setText(text, juce::dontSendNotification);
-}
 
 void MainComponent::rebuildMidiOutputs()
 {
@@ -1831,7 +1444,6 @@ void MainComponent::sendReboot()
     }
 }
 
-void MainComponent::refreshPresets() {}
 
 // ── Performance Editor ──
 
