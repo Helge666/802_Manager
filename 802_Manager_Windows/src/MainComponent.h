@@ -434,6 +434,14 @@ private:
     juce::TextButton fpPlayNotes { "Play Notes" };
     juce::Label frontStatus;
 
+    // Settings section — displayed below the Right Panel image in the Right Panel tab.
+    // Controls are children of this container; the Settings tab in the tab bar is now empty.
+    struct RpSettingsSection : public juce::Component
+    {
+        void paint(juce::Graphics& g) override { g.fillAll(juce::Colour(0xFF1E1E1E)); }
+    };
+    RpSettingsSection rpSettingsSection;
+
     // Settings tab (MIDI + actions)
     juce::Component settingsTab;
     // Section headers
