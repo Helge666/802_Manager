@@ -396,11 +396,17 @@ MainComponent::MainComponent()
         leftPanelTab.addAndMakeVisible(btn);
         btn->onClick = [this, i]
         {
+            lpSaveBrowserState();                   // save outgoing TG's filter/page state
+
             // Show only this TG's row, hide the rest.
             for (int j = 0; j < 8; ++j)
                 setLpRowVisible(j, j == i);
             selectedTg = i;
             setLcdLine(0, buildVoiceSelectLine());  // update LCD line 0 for selected TG
+
+            lpRestoreBrowserState(i);               // restore incoming TG's filter/page state
+            lpRefreshPresets();                     // reload list for this TG's filter
+            lpUpdateOverlay();                      // initial overlay — correct for no-MIDI case
 
             if (! midiSender || ! midiSender->isOpen()) return;
             midi::ConfigState cfg;
@@ -409,6 +415,7 @@ MainComponent::MainComponent()
             sendPerfParam(i + 1, "TG", currentlyOn ? 0 : 1);
             perfTgOnOff[i].setSelectedId(currentlyOn ? 1 : 2, juce::dontSendNotification);
             lpTgOnOff[i].setSelectedId(currentlyOn ? 1 : 2, juce::dontSendNotification);
+            lpUpdateOverlay();                      // re-evaluate after toggle (MIDI case)
         };
     }
     // LCD text overlay on the display area (non-interactive, drawn on top of the green LCD region)
@@ -513,6 +520,89 @@ MainComponent::MainComponent()
             lpTgDamp[i].onChange = [this, tg, i]{ sendPerfParam(tg, "FDAMP", lpTgDamp[i].getSelectedId() == 2 ? 1 : 0); };
         }
         leftPanelTab.addAndMakeVisible(lpPerfSection);
+    }
+
+    // ── Left Panel inline Preset Browser ──
+    {
+        // Rating combo — same items as the tab browser
+        lpRatingFilterCombo.addItem("Any",     1);
+        lpRatingFilterCombo.addItem("Unrated", 2);
+        for (int r = 1; r <= 10; ++r) lpRatingFilterCombo.addItem(juce::String(r), 100 + r);
+        lpRatingFilterCombo.setText("Any", juce::dontSendNotification);
+
+        // Preset list
+        lpPresetList.setModel(&lpPresetModel);
+        lpPresetList.setMultipleSelectionEnabled(false);
+        lpPresetList.setRowHeight(22);
+        lpPresetList.setColour(juce::ListBox::backgroundColourId, juce::Colour(0xFF1A1A1A));
+
+        // Bank list — shares bankModel with the Preset Browser tab
+        lpBankList.setModel(&bankModel);
+        lpBankList.setMultipleSelectionEnabled(false);
+        lpBankList.setRowHeight(22);
+        lpBankList.setColour(juce::ListBox::backgroundColourId, juce::Colours::black.withAlpha(0.15f));
+
+        lpBankNote.setFont(juce::Font(11.0f));
+        lpBankNote.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+
+        // Filter/rating callbacks — save state then refresh
+        auto lpRefresh = [this]{ lpRefreshPresets(); };
+        lpFilterEdit.onTextChange = [this, lpRefresh]{
+            if (selectedTg >= 0) lpBrowserState[selectedTg].currentPage = 1;
+            lpCurrentPage = 1;
+            lpRefresh();
+        };
+        lpRatingFilterCombo.onChange = [this, lpRefresh]{
+            if (selectedTg >= 0) lpBrowserState[selectedTg].currentPage = 1;
+            lpCurrentPage = 1;
+            lpRefresh();
+        };
+
+        // Pagination
+        lpFirstPage.onClick = [this]{ lpCurrentPage = 1; lpRefreshPresets(); };
+        lpPrevPage.onClick  = [this]{ if (lpCurrentPage > 1) { --lpCurrentPage; lpRefreshPresets(); } };
+        lpNextPage.onClick  = [this]{
+            if (selectedTg >= 0)
+            {
+                int maxPage = juce::jmax(1, (lpBrowserState[selectedTg].totalRows + pageSize - 1) / pageSize);
+                if (lpCurrentPage < maxPage) { ++lpCurrentPage; lpRefreshPresets(); }
+            }
+        };
+        lpLastPage.onClick = [this]{
+            if (selectedTg >= 0)
+            {
+                int maxPage = juce::jmax(1, (lpBrowserState[selectedTg].totalRows + pageSize - 1) / pageSize);
+                lpCurrentPage = maxPage;
+                lpRefreshPresets();
+            }
+        };
+
+        // Bank buttons — delegate to shared action methods
+        lpInitBankButton.onClick       = [this]{ initBank(); };
+        lpRandomizeBankButton.onClick  = [this]{ randomizeBank(); };
+        lpSendBankButton.onClick       = [this]{ sendBankToDevice(); };
+
+        // Add controls to the section container
+        lpBrowserSection.addAndMakeVisible(lpFilterLabel);
+        lpBrowserSection.addAndMakeVisible(lpFilterEdit);
+        lpBrowserSection.addAndMakeVisible(lpRatingLabel);
+        lpBrowserSection.addAndMakeVisible(lpRatingFilterCombo);
+        lpBrowserSection.addAndMakeVisible(lpFirstPage);
+        lpBrowserSection.addAndMakeVisible(lpPrevPage);
+        lpBrowserSection.addAndMakeVisible(lpNextPage);
+        lpBrowserSection.addAndMakeVisible(lpLastPage);
+        lpBrowserSection.addAndMakeVisible(lpPresetHeader);
+        lpBrowserSection.addAndMakeVisible(lpPresetList);
+        lpBrowserSection.addAndMakeVisible(lpBrowserStatusLabel);
+        lpBrowserSection.addAndMakeVisible(lpBankHeader);
+        lpBrowserSection.addAndMakeVisible(lpBankList);
+        lpBrowserSection.addAndMakeVisible(lpInitBankButton);
+        lpBrowserSection.addAndMakeVisible(lpRandomizeBankButton);
+        lpBrowserSection.addAndMakeVisible(lpSendBankButton);
+        lpBrowserSection.addAndMakeVisible(lpBankNote);
+        lpBrowserSection.addChildComponent(lpBrowserOverlay);  // shown when TG is Off
+
+        leftPanelTab.addAndMakeVisible(lpBrowserSection);
     }
 
     // Mode select buttons: non-momentary radio group
@@ -817,6 +907,8 @@ MainComponent::MainComponent()
             bankModel.setNumSlots(visibleSlots);
             bankList.updateContent();
             bankList.repaint();
+            lpBankList.updateContent();
+            lpBankList.repaint();
         }
     };
     devIdSlider.onValueChange = [this]{
@@ -1064,8 +1156,9 @@ void MainComponent::resized()
         float scale = disp ? (float)disp->scale : 1.0f;
         const int panelBottom = juce::roundToInt(kPanelHeight / scale);
         const int sectionW    = juce::roundToInt(kPanelWidth  / scale);
-        const int sectionH    = juce::jmax(0, getHeight() - tabs.getTabBarDepth() - panelBottom - 4);
-        lpPerfSection.setBounds(0, panelBottom + 4, sectionW, sectionH);
+        // Strip height: 8px reduced padding + 22px header + 2px gap + 28px row + 8px padding = 68px
+        const int lpStripH    = 68;
+        lpPerfSection.setBounds(0, panelBottom + 4, sectionW, lpStripH);
 
         const int colW[] = { 30, 50, 120, 60, 70, 70, 60, 60, 60, 70, 55 };
         const int rowH = 28, hdrH = 22, gap = 2;
@@ -1102,6 +1195,60 @@ void MainComponent::resized()
             lpTgOut[i].setBounds(row.removeFromLeft(colW[9]));      row.removeFromLeft(gap);
             lpTgDamp[i].setBounds(row.removeFromLeft(colW[10]));
         }
+    }
+
+    // ── Left Panel inline Preset Browser layout ──
+    {
+        using namespace PanelLayout;
+        auto* disp = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay();
+        float scale = disp ? (float)disp->scale : 1.0f;
+        const int panelBottom = juce::roundToInt(kPanelHeight / scale);
+        const int sectionW    = juce::roundToInt(kPanelWidth  / scale);
+        const int lpStripH    = 68;
+        const int browserTop  = panelBottom + 4 + lpStripH + 4;
+        const int browserH    = juce::jmax(0, getHeight() - tabs.getTabBarDepth() - browserTop);
+        lpBrowserSection.setBounds(0, browserTop, sectionW, browserH);
+
+        // Overlay covers the entire browser section
+        lpBrowserOverlay.setBounds(lpBrowserSection.getLocalBounds());
+
+        auto area = lpBrowserSection.getLocalBounds().reduced(6);
+        const int rowH = 24, gap = 4, btnW = 50;
+
+        // Top row: filter + rating + pagination buttons
+        auto filterRow = area.removeFromTop(rowH);
+        lpFilterLabel.setBounds(filterRow.removeFromLeft(48));          filterRow.removeFromLeft(4);
+        lpFilterEdit.setBounds(filterRow.removeFromLeft(180));          filterRow.removeFromLeft(10);
+        lpRatingLabel.setBounds(filterRow.removeFromLeft(48));          filterRow.removeFromLeft(4);
+        lpRatingFilterCombo.setBounds(filterRow.removeFromLeft(90));
+        lpLastPage.setBounds(filterRow.removeFromRight(btnW));          filterRow.removeFromRight(gap);
+        lpNextPage.setBounds(filterRow.removeFromRight(btnW));          filterRow.removeFromRight(gap);
+        lpPrevPage.setBounds(filterRow.removeFromRight(btnW));          filterRow.removeFromRight(gap);
+        lpFirstPage.setBounds(filterRow.removeFromRight(btnW));
+        area.removeFromTop(gap);
+
+        // Split remaining area: left = preset list, right = bank
+        const int bankW = 200;
+        auto rightArea = area.removeFromRight(bankW);
+        area.removeFromRight(6);
+
+        // Left: preset header + list + status
+        auto statusRow = area.removeFromBottom(18);
+        lpBrowserStatusLabel.setBounds(statusRow);
+        auto presetHdrRow = area.removeFromTop(18);
+        lpPresetHeader.setBounds(presetHdrRow);
+        lpPresetList.setBounds(area);
+
+        // Right: bank header + list + note + buttons
+        auto bankBtnRow = rightArea.removeFromBottom(rowH);
+        lpInitBankButton.setBounds(bankBtnRow.removeFromLeft(42));       bankBtnRow.removeFromLeft(gap);
+        lpRandomizeBankButton.setBounds(bankBtnRow.removeFromLeft(54));  bankBtnRow.removeFromLeft(gap);
+        lpSendBankButton.setBounds(bankBtnRow.removeFromLeft(42));
+        auto bankNoteRow = rightArea.removeFromBottom(16);
+        lpBankNote.setBounds(bankNoteRow);
+        auto bankHdrRow = rightArea.removeFromTop(18);
+        lpBankHeader.setBounds(bankHdrRow);
+        lpBankList.setBounds(rightArea);
     }
 
     // ── Settings tab layout ──
@@ -1274,6 +1421,47 @@ void MainComponent::PresetHeader::paint(juce::Graphics& g)
     g.drawText("Rt", x, 0, owner.colRatingWidth, h, juce::Justification::centredLeft);
 }
 
+// ── LP Preset Browser — model + header ──
+
+int MainComponent::LpPresetModel::getNumRows()
+{
+    if (owner.selectedTg < 0) return 0;
+    return owner.lpBrowserState[owner.selectedTg].currentRows.size();
+}
+
+void MainComponent::LpPresetModel::paintListBoxItem(int row, juce::Graphics& g,
+                                                    int width, int height, bool selected)
+{
+    if (owner.selectedTg < 0) return;
+    const auto& rows = owner.lpBrowserState[owner.selectedTg].currentRows;
+    if (! juce::isPositiveAndBelow(row, rows.size())) return;
+    const auto& r = rows[row];
+
+    if (selected) g.fillAll(juce::Colour(0xFF003366).withAlpha(0.8f));
+    g.setColour(selected ? juce::Colours::white : juce::Colours::lightgrey);
+    g.setFont(13.0f);
+    const int idW = 44, nameW = 130, x0 = 4;
+    g.drawText(juce::String(r.id),   x0,           0, idW,             height, juce::Justification::centredLeft);
+    g.drawText(r.presetName,         x0 + idW,     0, nameW,           height, juce::Justification::centredLeft);
+    g.drawText(r.category,           x0 + idW + nameW, 0, width - x0 - idW - nameW, height, juce::Justification::centredLeft);
+}
+
+void MainComponent::LpPresetModel::listBoxItemClicked(int row, const juce::MouseEvent&)
+{
+    owner.lpPresetItemClicked(row);
+}
+
+void MainComponent::LpPresetHeader::paint(juce::Graphics& g)
+{
+    g.fillAll(juce::Colours::darkgrey.darker(0.3f));
+    g.setColour(juce::Colours::white);
+    g.setFont(juce::Font(12.0f, juce::Font::bold));
+    const int h = getHeight(), idW = 44, nameW = 130, x0 = 4;
+    g.drawText("ID",       x0,           0, idW,             h, juce::Justification::centredLeft);
+    g.drawText("Patch",    x0 + idW,     0, nameW,           h, juce::Justification::centredLeft);
+    g.drawText("Category", x0 + idW + nameW, 0, getWidth() - x0 - idW - nameW, h, juce::Justification::centredLeft);
+}
+
 // ── Rating change ──
 void MainComponent::changeRatingForRow(int rowIndex, int delta)
 {
@@ -1386,6 +1574,8 @@ void MainComponent::setBankSlotFromPreset(int slotIndex, int presetId, const juc
     bankModel.setSlotName(slotIndex, name);
     bankList.updateContent();
     bankList.repaintRow(slotIndex);
+    lpBankList.updateContent();
+    lpBankList.repaintRow(slotIndex);
 }
 
 void MainComponent::moveBankSlot(int fromIndex, int toIndex)
@@ -1399,6 +1589,8 @@ void MainComponent::moveBankSlot(int fromIndex, int toIndex)
     bankModel.setSlotName(toIndex, fromName);
     bankList.updateContent();
     bankList.repaint();
+    lpBankList.updateContent();
+    lpBankList.repaint();
 }
 
 void MainComponent::initBank()
@@ -1410,6 +1602,8 @@ void MainComponent::initBank()
     }
     bankList.updateContent();
     bankList.repaint();
+    lpBankList.updateContent();
+    lpBankList.repaint();
 }
 
 void MainComponent::randomizeBank()
@@ -1445,6 +1639,8 @@ void MainComponent::randomizeBank()
     }
     bankList.updateContent();
     bankList.repaint();
+    lpBankList.updateContent();
+    lpBankList.repaint();
     statusLabel.setText("Randomized " + juce::String(juce::jmin(visibleSlots, all.size())) + " presets", juce::dontSendNotification);
 }
 
@@ -1869,6 +2065,76 @@ void MainComponent::setLpRowVisible(int tg0based, bool visible)
     lpTgVol[tg0based].setVisible(visible);
     lpTgOut[tg0based].setVisible(visible);
     lpTgDamp[tg0based].setVisible(visible);
+}
+
+// ── LP Preset Browser — methods ──
+
+void MainComponent::lpRefreshPresets()
+{
+    if (selectedTg < 0 || ! presetsDb)
+    {
+        lpPresetList.updateContent();
+        lpBrowserStatusLabel.setText({}, juce::dontSendNotification);
+        return;
+    }
+
+    auto& state = lpBrowserState[selectedTg];
+    state.currentPage = lpCurrentPage;
+
+    juce::String err;
+    int total = 0;
+    int offset = (lpCurrentPage - 1) * pageSize;
+    state.currentRows = presetsDb->queryPresets(
+        lpFilterEdit.getText(), lpRatingFilterCombo.getText(),
+        pageSize, offset, total, err);
+    state.totalRows = total;
+
+    lpPresetList.updateContent();
+    lpPresetList.repaint();
+    lpPresetHeader.repaint();
+    lpBrowserStatusLabel.setText(
+        "Rows: " + juce::String(total) + "  Page " + juce::String(lpCurrentPage),
+        juce::dontSendNotification);
+}
+
+void MainComponent::lpPresetItemClicked(int row)
+{
+    if (selectedTg < 0) return;
+    const auto& state = lpBrowserState[selectedTg];
+    if (! juce::isPositiveAndBelow(row, state.currentRows.size())) return;
+    const auto& r = state.currentRows[row];
+    // Place the preset into the bank slot corresponding to the selected TG (0-based)
+    if (juce::isPositiveAndBelow(selectedTg, bankSlotIds.size()))
+        setBankSlotFromPreset(selectedTg, r.id, r.presetName);
+}
+
+void MainComponent::lpSaveBrowserState()
+{
+    if (selectedTg < 0) return;
+    auto& state = lpBrowserState[selectedTg];
+    state.filterText  = lpFilterEdit.getText();
+    state.ratingId    = lpRatingFilterCombo.getSelectedId();
+    state.currentPage = lpCurrentPage;
+    // currentRows and totalRows are already up-to-date in the state struct
+}
+
+void MainComponent::lpRestoreBrowserState(int tg0based)
+{
+    const auto& state = lpBrowserState[tg0based];
+    lpFilterEdit.setText(state.filterText, juce::dontSendNotification);
+    lpRatingFilterCombo.setSelectedId(
+        state.ratingId > 0 ? state.ratingId : 1, juce::dontSendNotification);
+    lpCurrentPage = state.currentPage;
+    // Rows will be (re)loaded by lpRefreshPresets() called after this
+}
+
+void MainComponent::lpUpdateOverlay()
+{
+    if (selectedTg < 0) { lpBrowserOverlay.setVisible(false); return; }
+    midi::ConfigState cfg;
+    midi::Config::load(cfg);
+    bool tgOn = midi::tgOnFromString(cfg.tg[selectedTg].tgOnOff);
+    lpBrowserOverlay.setVisible(! tgOn);
 }
 
 void MainComponent::refreshPerfPresetDropdowns()
