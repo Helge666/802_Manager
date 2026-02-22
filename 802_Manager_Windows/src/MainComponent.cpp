@@ -146,8 +146,8 @@ MainComponent::MainComponent()
     presetBrowserTab.addAndMakeVisible(filterEdit);
     presetBrowserTab.addAndMakeVisible(ratingLabel);
     presetBrowserTab.addAndMakeVisible(ratingFilterCombo);
-    presetBrowserTab.addAndMakeVisible(selectDbButton);
-    presetBrowserTab.addAndMakeVisible(dbPathLabel);
+    rpSettingsSection.addAndMakeVisible(selectDbButton);
+    rpSettingsSection.addAndMakeVisible(dbPathLabel);
     presetBrowserTab.addAndMakeVisible(presetHeader);
     presetBrowserTab.addAndMakeVisible(presetList);
     presetBrowserTab.addAndMakeVisible(bankList);
@@ -631,38 +631,39 @@ MainComponent::MainComponent()
     // TODO: Play Notes — software test utility; implement later
 
     midi::StartupLog::write("CTOR: Settings tab setup");
-    // ── Settings tab ──
-    settingsTab.addAndMakeVisible(midiOutputCombo);
-    settingsTab.addAndMakeVisible(midiInputCombo);
+    // ── Settings section (hosted in Right Panel tab, below the panel image) ──
+    rpSettingsSection.addAndMakeVisible(midiOutputCombo);
+    rpSettingsSection.addAndMakeVisible(midiInputCombo);
     settHdrMidi.setFont(juce::Font(15.0f, juce::Font::bold));
     settHdrDevice.setFont(juce::Font(15.0f, juce::Font::bold));
     settHdrSysex.setFont(juce::Font(15.0f, juce::Font::bold));
-    settingsTab.addAndMakeVisible(settHdrMidi);
-    settingsTab.addAndMakeVisible(settHdrDevice);
-    settingsTab.addAndMakeVisible(settHdrSysex);
-    settingsTab.addAndMakeVisible(settLblInput);
-    settingsTab.addAndMakeVisible(settLblOutput);
-    settingsTab.addAndMakeVisible(refreshMidiButton);
-    settingsTab.addAndMakeVisible(forwardingToggle);
+    rpSettingsSection.addAndMakeVisible(settHdrMidi);
+    rpSettingsSection.addAndMakeVisible(settHdrDevice);
+    rpSettingsSection.addAndMakeVisible(settHdrSysex);
+    rpSettingsSection.addAndMakeVisible(settLblInput);
+    rpSettingsSection.addAndMakeVisible(settLblOutput);
+    rpSettingsSection.addAndMakeVisible(refreshMidiButton);
+    rpSettingsSection.addAndMakeVisible(forwardingToggle);
     midiStatusBox.setMultiLine(false);
     midiStatusBox.setReadOnly(true);
     midiStatusBox.setCaretVisible(false);
     midiStatusBox.setColour(juce::TextEditor::backgroundColourId, juce::Colours::black.withAlpha(0.3f));
     midiStatusBox.setColour(juce::TextEditor::outlineColourId, juce::Colours::grey);
     midiStatusBox.setColour(juce::TextEditor::textColourId, juce::Colours::lightgreen);
-    settingsTab.addAndMakeVisible(midiStatusBox);
-    settingsTab.addAndMakeVisible(rebootButton);
-    settingsTab.addAndMakeVisible(prepareBtn);
-    settingsTab.addAndMakeVisible(playTest);
-    settingsTab.addAndMakeVisible(panicBtn);
-    settingsTab.addAndMakeVisible(devIdLabel);
-    settingsTab.addAndMakeVisible(devIdSlider);
-    settingsTab.addAndMakeVisible(chunkLabel);
-    settingsTab.addAndMakeVisible(chunkSlider);
-    settingsTab.addAndMakeVisible(delayLabel);
-    settingsTab.addAndMakeVisible(delaySlider);
-    settingsTab.addAndMakeVisible(patchesLabel);
-    settingsTab.addAndMakeVisible(patchesCombo);
+    rpSettingsSection.addAndMakeVisible(midiStatusBox);
+    rpSettingsSection.addAndMakeVisible(rebootButton);
+    rpSettingsSection.addAndMakeVisible(prepareBtn);
+    rpSettingsSection.addAndMakeVisible(playTest);
+    rpSettingsSection.addAndMakeVisible(panicBtn);
+    rpSettingsSection.addAndMakeVisible(devIdLabel);
+    rpSettingsSection.addAndMakeVisible(devIdSlider);
+    rpSettingsSection.addAndMakeVisible(chunkLabel);
+    rpSettingsSection.addAndMakeVisible(chunkSlider);
+    rpSettingsSection.addAndMakeVisible(delayLabel);
+    rpSettingsSection.addAndMakeVisible(delaySlider);
+    rpSettingsSection.addAndMakeVisible(patchesLabel);
+    rpSettingsSection.addAndMakeVisible(patchesCombo);
+    frontPanelTab.addAndMakeVisible(rpSettingsSection);
 
     midi::StartupLog::write("CTOR: Wiring callbacks");
     // ── Wiring ──
@@ -943,7 +944,6 @@ MainComponent::MainComponent()
     tabs.addTab("Right Panel",          juce::Colours::darkgrey, &frontPanelTab,          false);
     tabs.addTab("Performance Editor",   juce::Colours::darkgrey, &performanceEditorTab,   false);
     tabs.addTab("Preset Browser",       juce::Colours::darkgrey, &presetBrowserTab,       false);
-    tabs.addTab("Settings",             juce::Colours::darkgrey, &settingsTab,            false);
     tabs.setCurrentTabIndex(0);
 
     midi::StartupLog::write("CTOR: setSize + refreshPage");
@@ -975,10 +975,6 @@ void MainComponent::resized()
     openBankButton.setBounds(pbTop.removeFromLeft(180));
     pbTop.removeFromLeft(8);
     openVoiceButton.setBounds(pbTop.removeFromLeft(180));
-    pbTop.removeFromLeft(8);
-    selectDbButton.setBounds(pbTop.removeFromLeft(120));
-    pbTop.removeFromLeft(8);
-    dbPathLabel.setBounds(pbTop);
     pb.removeFromTop(4);
 
     auto pbFilter = pb.removeFromTop(24);
@@ -1251,10 +1247,23 @@ void MainComponent::resized()
         lpBankList.setBounds(rightArea);
     }
 
-    // ── Settings tab layout ──
+    // ── Right Panel settings section layout ──
     {
-        auto st = settingsTab.getLocalBounds().reduced(16);
+        using namespace PanelLayout;
+        auto* disp = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay();
+        float scale = disp ? (float)disp->scale : 1.0f;
+        const int panelBottom = juce::roundToInt(kPanelHeight / scale);
+        const int sectionW    = juce::roundToInt(kPanelWidth  / scale);
+        const int sectionH    = juce::jmax(0, getHeight() - tabs.getTabBarDepth() - panelBottom - 4);
+        rpSettingsSection.setBounds(0, panelBottom + 4, sectionW, sectionH);
+    }
+    {
+        auto st = rpSettingsSection.getLocalBounds().reduced(16);
         const int rowH = 28, labelH = 18, gap = 6, sectionGap = 14, comboW = 340, btnW = 150;
+
+        // DB file selection — above all other settings
+        { auto r = st.removeFromTop(rowH); selectDbButton.setBounds(r.removeFromLeft(120)); r.removeFromLeft(8); dbPathLabel.setBounds(r); }
+        st.removeFromTop(sectionGap);
 
         settHdrMidi.setBounds(st.removeFromTop(rowH)); st.removeFromTop(gap);
         { auto r = st.removeFromTop(labelH); settLblInput.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); settLblOutput.setBounds(r.removeFromLeft(comboW)); }
@@ -2035,7 +2044,7 @@ juce::String MainComponent::buildVoiceSelectLine() const
         name = cfg.presetBankNames[slot - 1];
     if (name.isEmpty() || name == "empty")
         name = t.preset;  // e.g. "I01"
-    name = name.substring(0, 10).paddedRight(' ', 10);
+    name = "<" + name.substring(0, 10).paddedRight(' ', 10) + ">";
 
     // Channel: " 1"–" 9" (leading space for single digit), "10"–"16", or " A" for Omni
     int ch = midi::rxchFromString(t.rxch);  // 1–16 or 17 (Omni)
