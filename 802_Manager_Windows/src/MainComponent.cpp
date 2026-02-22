@@ -729,16 +729,20 @@ MainComponent::MainComponent()
     fpReset.onClick = [sendBtn]{ sendBtn("RESET"); };
     fpLower.onClick  = [sendBtn]{ sendBtn("LOWERCASE"); };
     fpUpper.onClick  = [sendBtn]{ sendBtn("UPPERCASE"); };
-    fpPrtctOff.onClick = [this]
+    fpPrtctOff.onClick = [this, deactExcept]
     {
         if (midiSender && midiSender->isOpen())
             midi::Tx802HighLevel::sendMacroByName(*midiSender, "PRTCT_OFF", 1);
+        deactExcept(&fpVoiceSelect);
+        fpVoiceSelect.setActive(true);
         frontStatus.setText("Sent PRTCT OFF", juce::dontSendNotification);
     };
-    fpPrtctOn.onClick = [this]
+    fpPrtctOn.onClick = [this, deactExcept]
     {
         if (midiSender && midiSender->isOpen())
             midi::Tx802HighLevel::sendMacroByName(*midiSender, "PRTCT_ON", 1);
+        deactExcept(&fpVoiceSelect);
+        fpVoiceSelect.setActive(true);
         frontStatus.setText("Sent PRTCT ON", juce::dontSendNotification);
     };
     fpPos1.onClick = [this]

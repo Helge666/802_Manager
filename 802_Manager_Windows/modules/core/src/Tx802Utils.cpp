@@ -130,12 +130,14 @@ juce::Array<ButtonPress> expandMacro(const juce::String& macroName)
         seq.add({ "SYSTEM_SETUP", 1 });
         seq.add({ "TG8", 1 });
         seq.add({ "NO", 1 });
+        seq.add({ "VOICE_SELECT", 1 });  // return device to known state
     }
     else if (n == "PRTCT_ON")
     {
         seq.add({ "SYSTEM_SETUP", 1 });
         seq.add({ "TG8", 1 });
         seq.add({ "YES", 1 });
+        seq.add({ "VOICE_SELECT", 1 });  // return device to known state
     }
     return seq;
 }
