@@ -622,13 +622,14 @@ MainComponent::MainComponent()
     for (int i = 0; i <= 9; ++i)
         frontPanelTab.addAndMakeVisible(fpNumButtons.add(new PanelButton()));
     frontPanelTab.addAndMakeVisible(frontStatus);
-    // TODO: TG1-TG8 belong to TX802-Panel-Left.png — add and make visible when implementing left panel
     for (int i = 1; i <= 8; ++i)
         fpTgButtons.add(new juce::TextButton("TG" + juce::String(i)));
-    // TODO: RESET — no physical panel button; implement as software action later
-    // TODO: lowercase / UPPERCASE — text-entry helpers, no physical buttons; implement later
-    // TODO: PRTCT OFF / PRTCT ON / POS1 — software macros; implement later
-    // TODO: Play Notes — software test utility; implement later
+    // ── Right Panel macro strip (RESET / PRTCT OFF / PRTCT ON / POS1) ──
+    rpMacroStrip.addAndMakeVisible(fpReset);
+    rpMacroStrip.addAndMakeVisible(fpPrtctOff);
+    rpMacroStrip.addAndMakeVisible(fpPrtctOn);
+    rpMacroStrip.addAndMakeVisible(fpPos1);
+    frontPanelTab.addAndMakeVisible(rpMacroStrip);
 
     midi::StartupLog::write("CTOR: Settings tab setup");
     // ── Settings section (hosted in Right Panel tab, below the panel image) ──
@@ -717,7 +718,6 @@ MainComponent::MainComponent()
             frontStatus.setText("Sent " + juce::String(i), juce::dontSendNotification);
         };
     }
-    // TODO: wire TG1-TG8 onClick when implementing left panel tab
     for (int i = 0; i < fpTgButtons.size(); ++i)
     {
         fpTgButtons[i]->onClick = [this, sendBtn, i]
@@ -726,12 +726,9 @@ MainComponent::MainComponent()
             frontStatus.setText("Sent TG" + juce::String(i + 1), juce::dontSendNotification);
         };
     }
-    // TODO: RESET — no physical panel button; wire as software action later
     fpReset.onClick = [sendBtn]{ sendBtn("RESET"); };
-    // TODO: lowercase / UPPERCASE — text-entry helpers; wire to physical buttons or menu later
     fpLower.onClick  = [sendBtn]{ sendBtn("LOWERCASE"); };
     fpUpper.onClick  = [sendBtn]{ sendBtn("UPPERCASE"); };
-    // TODO: PRTCT OFF / PRTCT ON / POS1 — software macros; expose via menu or toolbar later
     fpPrtctOff.onClick = [this]
     {
         if (midiSender && midiSender->isOpen())
@@ -750,7 +747,6 @@ MainComponent::MainComponent()
             midi::Tx802HighLevel::sendMacroByName(*midiSender, "POS1", 1);
         frontStatus.setText("Sent POS1", juce::dontSendNotification);
     };
-    // TODO: Play Notes — software test utility; expose via toolbar or menu later
     fpPlayNotes.onClick = [this]
     {
         if (midiSender && midiSender->isOpen())
@@ -1100,8 +1096,6 @@ void MainComponent::resized()
         frontStatus.setBounds(0, juce::roundToInt(kPanelHeight / scale) + 4,
                               juce::roundToInt(kPanelWidth / scale), 22);
 
-        // TODO: TG1-TG8 — left panel; position when implementing left panel tab
-        // TODO: RESET, lowercase, UPPERCASE, PRTCT OFF/ON, POS1, Play Notes — add to toolbar/menu later
     }
 
     // ── Left Panel LED overlay layout ──
@@ -1247,15 +1241,29 @@ void MainComponent::resized()
         lpBankList.setBounds(rightArea);
     }
 
-    // ── Right Panel settings section layout ──
+    // ── Right Panel macro strip + settings section layout ──
     {
         using namespace PanelLayout;
         auto* disp = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay();
         float scale = disp ? (float)disp->scale : 1.0f;
-        const int panelBottom = juce::roundToInt(kPanelHeight / scale);
-        const int sectionW    = juce::roundToInt(kPanelWidth  / scale);
-        const int sectionH    = juce::jmax(0, getHeight() - tabs.getTabBarDepth() - panelBottom - 4);
-        rpSettingsSection.setBounds(0, panelBottom + 4, sectionW, sectionH);
+        const int panelBottom  = juce::roundToInt(kPanelHeight / scale);
+        const int sectionW     = juce::roundToInt(kPanelWidth  / scale);
+        const int macroStripH  = 68;
+        const int macroTop     = panelBottom + 4;
+        rpMacroStrip.setBounds(0, macroTop, sectionW, macroStripH);
+        // Internal macro strip layout
+        {
+            auto ms  = rpMacroStrip.getLocalBounds().reduced(8);
+            const int btnH = 36, btnW = 110, gap = 8;
+            auto row = ms.withSizeKeepingCentre(ms.getWidth(), btnH);
+            fpReset.setBounds(row.removeFromLeft(btnW));    row.removeFromLeft(gap);
+            fpPrtctOff.setBounds(row.removeFromLeft(btnW)); row.removeFromLeft(gap);
+            fpPrtctOn.setBounds(row.removeFromLeft(btnW));  row.removeFromLeft(gap);
+            fpPos1.setBounds(row.removeFromLeft(btnW));
+        }
+        const int settingsTop  = macroTop + macroStripH + 4;
+        const int sectionH     = juce::jmax(0, getHeight() - tabs.getTabBarDepth() - settingsTop);
+        rpSettingsSection.setBounds(0, settingsTop, sectionW, sectionH);
     }
     {
         auto st = rpSettingsSection.getLocalBounds().reduced(16);
