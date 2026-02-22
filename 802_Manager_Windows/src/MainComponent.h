@@ -419,20 +419,24 @@ private:
     // 0-based index of the currently selected TG (-1 = none selected).
     // Set when the user clicks a TG button; used by the sections below the panel image.
     int selectedTg { -1 };
-    // TODO: TG1-TG8 buttons belong to TX802-Panel-Left.png — implement with left panel later
+    // fpTgButtons: TG1–TG8 software references (wired but not shown on panel image; lpTgButtons handles the Left Panel hit-rects)
     juce::OwnedArray<juce::TextButton> fpTgButtons;
-    // TODO: RESET — no dedicated physical button; implement as software action later
-    juce::TextButton fpReset { "RESET" };
-    // TODO: lowercase / UPPERCASE — text-entry mode helpers, no physical buttons; implement later
-    juce::TextButton fpLower { "lowercase" };
-    juce::TextButton fpUpper { "UPPERCASE" };
-    // TODO: PRTCT OFF / PRTCT ON / POS1 — software macros; implement later
+    // Software-only macro buttons (no physical panel equivalent)
+    juce::TextButton fpReset    { "RESET" };
+    juce::TextButton fpLower    { "lowercase" };
+    juce::TextButton fpUpper    { "UPPERCASE" };
     juce::TextButton fpPrtctOff { "PRTCT OFF" };
     juce::TextButton fpPrtctOn  { "PRTCT ON" };
     juce::TextButton fpPos1     { "POS1" };
-    // TODO: Play Notes — software test utility; implement later
     juce::TextButton fpPlayNotes { "Play Notes" };
     juce::Label frontStatus;
+
+    // Macro button strip — displayed below the Right Panel image, mirroring lpPerfSection style/position on the Left Panel.
+    struct RpMacroStrip : public juce::Component
+    {
+        void paint(juce::Graphics& g) override { g.fillAll(juce::Colour(0xFF1E1E1E)); }
+    };
+    RpMacroStrip rpMacroStrip;
 
     // Settings section — displayed below the Right Panel image in the Right Panel tab.
     // Controls are children of this container; the Settings tab in the tab bar is now empty.
