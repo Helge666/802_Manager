@@ -489,7 +489,7 @@ MainComponent::MainComponent()
 
     midi::StartupLog::write("CTOR: Wiring callbacks");
     // ── Wiring ──
-    refreshMidiButton.onClick = [this] { rebuildMidiOutputs(); };
+    refreshMidiButton.onClick = [this] { rebuildMidiOutputs(); rebuildMidiInputs(); };
     rebootButton.onClick = [this] { sendReboot(); };
     playTest.onClick = [this]
     {
@@ -584,11 +584,7 @@ MainComponent::MainComponent()
     rebuildMidiOutputs();
 
     // Populate inputs
-    {
-        auto inNames = juce::MidiInput::getDevices();
-        for (int i = 0; i < inNames.size(); ++i)
-            midiInputCombo.addItem(inNames[i], i + 1);
-    }
+    rebuildMidiInputs();
     midiThru = std::make_unique<midi::MidiThru>();
     panicBtn.onClick = [this]
     {
@@ -628,9 +624,15 @@ MainComponent::MainComponent()
                     midiInputCombo.setText(cfg.inputPort, juce::dontSendNotification);
                     if (cfg.forwardingEnabled && midiSender->isOpen())
                     {
-                        forwardingToggle.setToggleState(true, juce::dontSendNotification);
-                        midiThru->start(midiInputCombo.getText(), midiSender.get());
-                        midiStatusBox.setText("Forwarding ON (" + midiInputCombo.getText() + " \xe2\x86\x92 " + midiOutputCombo.getText() + ")");
+                        if (midiThru->start(midiInputCombo.getText(), midiSender.get()))
+                        {
+                            forwardingToggle.setToggleState(true, juce::dontSendNotification);
+                            midiStatusBox.setText("Forwarding ON (" + midiInputCombo.getText() + " \xe2\x86\x92 " + midiOutputCombo.getText() + ")");
+                        }
+                        else
+                        {
+                            midiStatusBox.setText("Forwarding: saved input not found (" + midiInputCombo.getText() + ")");
+                        }
                     }
                 }
             });
@@ -664,6 +666,7 @@ MainComponent::MainComponent()
     midiInputCombo.onChange = [this]
     {
         midi::ConfigState cfg; midi::Config::load(cfg); cfg.inputPort = midiInputCombo.getText(); midi::Config::save(cfg);
+        // TODO (Bug 3): if forwardingToggle is ON, stop and restart midiThru with the new input
     };
 
     forwardingToggle.onClick = [this]
@@ -1290,6 +1293,17 @@ void MainComponent::rebuildMidiOutputs()
         midiOutputCombo.addItem(names[i], i + 1);
     if (names.isEmpty())
         midiStatusBox.setText("No MIDI outputs found");
+}
+
+void MainComponent::rebuildMidiInputs()
+{
+    const auto prev = midiInputCombo.getText();
+    midiInputCombo.clear(juce::dontSendNotification);   // don't clobber saved config
+    int id = 1;
+    for (const auto& d : juce::MidiInput::getAvailableDevices())
+        midiInputCombo.addItem(d.name, id++);
+    if (prev.isNotEmpty())
+        midiInputCombo.setText(prev, juce::dontSendNotification);  // restore silently
 }
 
 void MainComponent::sendReboot()

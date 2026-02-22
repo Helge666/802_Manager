@@ -56,6 +56,7 @@ public:
 private:
     void handleIncomingMidiMessage(juce::MidiInput*, const juce::MidiMessage& message) override
     {
+        // TODO (Bug 4): filter to notes and CC only (skip SysEx and other status bytes)
         if (sender)
             sender->sendMessageNow(message);
     }
