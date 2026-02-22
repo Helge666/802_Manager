@@ -167,6 +167,7 @@ private:
     // (Deprecated) Per-row component approach removed; using painted arrows + click handling instead
 
     void rebuildMidiOutputs();
+    void rebuildMidiInputs();
     void sendReboot();
     // Bank helpers
     void setBankSlotFromPreset(int slotIndex, int presetId, const juce::String& name);
