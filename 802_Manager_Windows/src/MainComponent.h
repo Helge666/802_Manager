@@ -187,39 +187,10 @@ private:
     std::unique_ptr<storage::PresetsDb>  presetsDb;
     std::unique_ptr<juce::FileChooser>   dbFileChooser;
 
-    // Performance Editor tab
-    juce::Component performanceEditorTab;
+    // Performance parameter send (shared with Left Panel parameter strip)
     void sendPerfParam(int tg1to8, const juce::String& paramName, int userValue);
-    void updatePerfControlsFromConfig();
     void refreshPerfPresetDropdowns();
     void setLpRowVisible(int tg0based, bool visible);
-
-    // Column header labels
-    juce::Label perfHdrTg   { {}, "#" };
-    juce::Label perfHdrOnOff{ {}, "TG" };
-    juce::Label perfHdrPrst { {}, "Preset" };
-    juce::Label perfHdrChan { {}, "Chan" };
-    juce::Label perfHdrLow  { {}, "Low" };
-    juce::Label perfHdrHigh { {}, "High" };
-    juce::Label perfHdrDet  { {}, "Det" };
-    juce::Label perfHdrShft { {}, "Shift" };
-    juce::Label perfHdrVol  { {}, "Vol" };
-    juce::Label perfHdrOut  { {}, "Out" };
-    juce::Label perfHdrDamp { {}, "Damp" };
-
-    // Per-TG controls (indexed 0-7 = TG1-TG8)
-    juce::Label     perfTgNum[8];
-    juce::ComboBox  perfTgOnOff[8];
-    juce::ComboBox  perfTgPreset[8];
-    juce::ComboBox  perfTgRxCh[8];
-    juce::Slider    perfTgNoteLow[8];
-    juce::Slider    perfTgNoteHigh[8];
-    juce::Slider    perfTgDetune[8];
-    juce::Slider    perfTgShift[8];
-    juce::Slider    perfTgVol[8];
-    juce::ComboBox  perfTgOut[8];
-    juce::ComboBox  perfTgDamp[8];
-    juce::Label     perfStatus;
 
     // Left Panel inline performance section (independent instances of all TG rows)
     struct LpPerfSection : public juce::Component
