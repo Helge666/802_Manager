@@ -13,6 +13,16 @@ Together these replace the need to switch tabs for day-to-day use.
 
 ---
 
+## ⚠️ Behaviours to preserve — do not break
+
+| Behaviour | Where implemented |
+|-----------|-------------------|
+| **Clicking a preset in the LP browser automatically places it into the bank slot matching the selected TG number** (TG1 → slot 0, TG2 → slot 1, …, TG8 → slot 7). This is the primary assignment workflow and must not be removed or changed. | `lpPresetItemClicked()` → `setBankSlotFromPreset(selectedTg, ...)` |
+| The LP bank panel and the Preset Browser tab bank panel share the same `bankModel` — any change in one is immediately reflected in the other. | `lpBankList.setModel(&bankModel)` |
+| The TG overlay (semi-transparent "TG is Off") is evaluated **after** the On/Off toggle, not before, to avoid pre/post-toggle inversion. | `lpUpdateOverlay()` called twice in onClick — once before MIDI guard, once after `sendPerfParam` |
+
+---
+
 ## Selected TG concept
 - Clicking a TG button **still toggles On/Off** (no change to existing behaviour).
 - The click also **selects** that TG, making it the "active" TG for the sections below.
