@@ -6,8 +6,7 @@
 #include "storage/PresetsDb.h"
 
 class MainComponent : public juce::Component,
-                      public juce::DragAndDropContainer,
-                      public juce::ListBoxModel
+                      public juce::DragAndDropContainer
 {
 public:
     MainComponent();
@@ -16,23 +15,7 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override;
 
-    // ListBoxModel (Preset Browser placeholder)
-    int getNumRows() override;
-    void paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected) override;
-    void selectedRowsChanged(int lastRowSelected) override;
-    juce::Component* refreshComponentForRow(int rowNumber, bool isRowSelected, juce::Component* existingComponentToUpdate) override;
-    void listBoxItemClicked(int row, const juce::MouseEvent& e) override;
-
 private:
-    // Small header component for the preset list
-    class PresetHeader : public juce::Component
-    {
-    public:
-        explicit PresetHeader(MainComponent& ownerRef) : owner(ownerRef) {}
-        void paint(juce::Graphics& g) override;
-    private:
-        MainComponent& owner;
-    };
 
     // Model for the bank list on the right (variable slot count)
     class BankModel : public juce::ListBoxModel
@@ -183,18 +166,8 @@ private:
 
     // (Deprecated) Per-row component approach removed; using painted arrows + click handling instead
 
-    void openDx7Bank();
-    void openSingleVoice();
-    void setStatus(const juce::String& text);
     void rebuildMidiOutputs();
     void sendReboot();
-    void refreshPresets();
-    void changeRatingForRow(int rowIndex, int delta);
-    // Drag from preset list
-    void mouseDown(const juce::MouseEvent& e) override;
-    void mouseDrag(const juce::MouseEvent& e) override;
-    void mouseUp(const juce::MouseEvent& e) override;
-    void beginDragFromPresetRow(int rowIndex);
     // Bank helpers
     void setBankSlotFromPreset(int slotIndex, int presetId, const juce::String& name);
     void moveBankSlot(int fromIndex, int toIndex);
@@ -204,49 +177,15 @@ private:
 
     juce::TabbedComponent tabs { juce::TabbedButtonBar::TabsAtTop };
 
-    // Preset Browser tab
-    juce::Component presetBrowserTab;
-    juce::TextButton openBankButton { "Open DX7 Bank (.syx)" };
-    juce::TextButton openVoiceButton { "Open Single Voice (.syx)" };
-    juce::Label filterLabel { {}, "Filter:" };
-    juce::TextEditor filterEdit;
-    juce::Label ratingLabel { {}, "Rating:" };
-    juce::ComboBox ratingFilterCombo;
-    juce::TextButton selectDbButton { "Select DB File" };
-    juce::Label dbPathLabel;
-    juce::ListBox presetList { "Presets", this };
-    PresetHeader presetHeader { *this };
-    BankModel bankModel;
-    juce::ListBox bankList { "Bank", &bankModel };
-    juce::Label bankHeader { {}, "" };
-    juce::TextButton initBankButton { "Clear" };
-    juce::TextButton randomizeBankButton { "Random" };
-    juce::TextButton sendBankButton { "Send" };
-    juce::Label statusLabel;
-    std::unique_ptr<storage::PresetsDb> presetsDb;
-    std::unique_ptr<juce::FileChooser> dbFileChooser;
-    juce::TextButton firstPage { "First" };
-    juce::TextButton prevPage  { "Prev" };
-    juce::TextButton nextPage  { "Next" };
-    juce::TextButton lastPage  { "Last" };
-    int currentPage { 1 };
-    int totalRows { 0 };
-    int pageSize { 100 };
-
-    // Preset Browser data and column layout
-    juce::Array<storage::PresetRow> currentRows;
-    int colIdWidth { 60 };
-    int colNameWidth { 110 };
-    int colCategoryWidth { 120 };
-    int colCommentsWidth { 280 };
-    int colRatingWidth { 36 };
-    bool showCommentsColumn { true };
-    float avgCharWidthPx { 8.0f }; // measured at runtime using JUCE Font
-    int visibleSlots { 8 };
-    juce::Label bankNote { {}, "NOTE: change # of patches to send in Settings" };
-    juce::Array<int> bankSlotIds; // visibleSlots entries, 0 = empty
-    int dragStartRow { -1 };
-    bool dragging { false };
+    // ─── Preset database + bank state (shared with LP browser) ──────────────────
+    juce::TextButton selectDbButton { "Select DB File" };  // hosted in rpSettingsSection
+    juce::Label      dbPathLabel;
+    BankModel        bankModel;
+    juce::Array<int> bankSlotIds;   // visibleSlots entries, 0 = empty
+    int              visibleSlots { 8 };
+    int              pageSize { 100 };  // used by LP browser pagination
+    std::unique_ptr<storage::PresetsDb>  presetsDb;
+    std::unique_ptr<juce::FileChooser>   dbFileChooser;
 
     // Performance Editor tab
     juce::Component performanceEditorTab;
@@ -475,8 +414,6 @@ private:
     juce::Slider delaySlider { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
     juce::Label patchesLabel { {}, "Patches to send:" };
     juce::ComboBox patchesCombo;
-    juce::StringArray presetNames;
-    std::unique_ptr<juce::FileChooser> fileChooser;
     std::unique_ptr<midi::MidiSender> midiSender;
     std::unique_ptr<midi::MidiThru> midiThru;
 
