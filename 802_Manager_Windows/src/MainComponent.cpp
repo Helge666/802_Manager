@@ -190,100 +190,6 @@ MainComponent::MainComponent()
         });
     };
 
-    midi::StartupLog::write("CTOR: Performance Editor tab setup");
-    // ── Performance Editor tab ──
-    {
-        // Header labels
-        for (auto* lbl : { &perfHdrTg, &perfHdrOnOff, &perfHdrPrst, &perfHdrChan,
-                           &perfHdrLow, &perfHdrHigh, &perfHdrDet, &perfHdrShft,
-                           &perfHdrVol, &perfHdrOut, &perfHdrDamp })
-        {
-            lbl->setFont(juce::Font(12.0f, juce::Font::bold));
-            lbl->setJustificationType(juce::Justification::centred);
-            performanceEditorTab.addAndMakeVisible(lbl);
-        }
-        performanceEditorTab.addAndMakeVisible(perfStatus);
-
-        midi::ConfigState perfCfg;
-        midi::Config::load(perfCfg);
-
-        for (int i = 0; i < 8; ++i)
-        {
-            const int tg = i + 1;
-            const auto& t = perfCfg.hasPerformanceParams ? perfCfg.tg[i] : midi::TgState();
-
-            perfTgNum[i].setText(juce::String(tg), juce::dontSendNotification);
-            perfTgNum[i].setJustificationType(juce::Justification::centred);
-            perfTgNum[i].setFont(juce::Font(13.0f, juce::Font::bold));
-            performanceEditorTab.addAndMakeVisible(perfTgNum[i]);
-
-            perfTgOnOff[i].addItem("Off", 1);
-            perfTgOnOff[i].addItem("On",  2);
-            perfTgOnOff[i].setSelectedId(midi::tgOnFromString(t.tgOnOff) ? 2 : 1, juce::dontSendNotification);
-            performanceEditorTab.addAndMakeVisible(perfTgOnOff[i]);
-            perfTgOnOff[i].onChange = [this, tg, i]{ sendPerfParam(tg, "TG", perfTgOnOff[i].getSelectedId() == 2 ? 1 : 0); };
-
-            for (int p = 1; p <= 32; ++p)
-                perfTgPreset[i].addItem("I" + juce::String(p).paddedLeft('0', 2), p);
-            perfTgPreset[i].setSelectedId(juce::jlimit(1, 32, midi::presetToVnum(t.preset)), juce::dontSendNotification);
-            performanceEditorTab.addAndMakeVisible(perfTgPreset[i]);
-            perfTgPreset[i].onChange = [this, tg, i]{ sendPerfParam(tg, "PRESET", perfTgPreset[i].getSelectedId()); };
-
-            for (int c = 1; c <= 16; ++c) perfTgRxCh[i].addItem(juce::String(c), c);
-            perfTgRxCh[i].addItem("Omni", 17);
-            perfTgRxCh[i].setSelectedId(juce::jlimit(1, 17, midi::rxchFromString(t.rxch)), juce::dontSendNotification);
-            performanceEditorTab.addAndMakeVisible(perfTgRxCh[i]);
-            perfTgRxCh[i].onChange = [this, tg, i]{ sendPerfParam(tg, "RXCH", perfTgRxCh[i].getSelectedId()); };
-
-            perfTgNoteLow[i].setRange(0, 127, 1);
-            perfTgNoteLow[i].setValue(midi::noteNameToMidi(t.noteLow), juce::dontSendNotification);
-            perfTgNoteLow[i].setSliderStyle(juce::Slider::IncDecButtons);
-            perfTgNoteLow[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 36, 20);
-            performanceEditorTab.addAndMakeVisible(perfTgNoteLow[i]);
-            perfTgNoteLow[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "NOTELOW", (int) perfTgNoteLow[i].getValue()); };
-
-            perfTgNoteHigh[i].setRange(0, 127, 1);
-            perfTgNoteHigh[i].setValue(midi::noteNameToMidi(t.noteHigh), juce::dontSendNotification);
-            perfTgNoteHigh[i].setSliderStyle(juce::Slider::IncDecButtons);
-            perfTgNoteHigh[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 36, 20);
-            performanceEditorTab.addAndMakeVisible(perfTgNoteHigh[i]);
-            perfTgNoteHigh[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "NOTEHIGH", (int) perfTgNoteHigh[i].getValue()); };
-
-            perfTgDetune[i].setRange(-7, 7, 1);
-            perfTgDetune[i].setValue(t.detune.getIntValue(), juce::dontSendNotification);
-            perfTgDetune[i].setSliderStyle(juce::Slider::IncDecButtons);
-            perfTgDetune[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 30, 20);
-            performanceEditorTab.addAndMakeVisible(perfTgDetune[i]);
-            perfTgDetune[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "DETUNE", (int) perfTgDetune[i].getValue()); };
-
-            perfTgShift[i].setRange(-24, 24, 1);
-            perfTgShift[i].setValue(t.noteShift.getIntValue(), juce::dontSendNotification);
-            perfTgShift[i].setSliderStyle(juce::Slider::IncDecButtons);
-            perfTgShift[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 30, 20);
-            performanceEditorTab.addAndMakeVisible(perfTgShift[i]);
-            perfTgShift[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "NOTESHIFT", (int) perfTgShift[i].getValue()); };
-
-            perfTgVol[i].setRange(0, 99, 1);
-            perfTgVol[i].setValue(t.outVol.getIntValue(), juce::dontSendNotification);
-            perfTgVol[i].setSliderStyle(juce::Slider::IncDecButtons);
-            perfTgVol[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 30, 20);
-            performanceEditorTab.addAndMakeVisible(perfTgVol[i]);
-            perfTgVol[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "OUTVOL", (int) perfTgVol[i].getValue()); };
-
-            perfTgOut[i].addItem("Off", 1); perfTgOut[i].addItem("Left", 2);
-            perfTgOut[i].addItem("Right", 3); perfTgOut[i].addItem("Center", 4);
-            perfTgOut[i].setSelectedId(midi::panToOutch(t.pan) + 1, juce::dontSendNotification);
-            performanceEditorTab.addAndMakeVisible(perfTgOut[i]);
-            perfTgOut[i].onChange = [this, tg, i]{ sendPerfParam(tg, "PAN", perfTgOut[i].getSelectedId() - 1); };
-
-            perfTgDamp[i].addItem("Off", 1); perfTgDamp[i].addItem("On", 2);
-            perfTgDamp[i].setSelectedId(midi::fdampFromString(t.fDamp) == 0 ? 1 : 2, juce::dontSendNotification);
-            performanceEditorTab.addAndMakeVisible(perfTgDamp[i]);
-            perfTgDamp[i].onChange = [this, tg, i]{ sendPerfParam(tg, "FDAMP", perfTgDamp[i].getSelectedId() == 2 ? 1 : 0); };
-        }
-    }
-    refreshPerfPresetDropdowns();
-
     midi::StartupLog::write("CTOR: Front Panel tab setup");
     // ── Right Panel tab — TX802-Panel-Right.png as background ──
     frontPanelTab.image = juce::ImageCache::getFromMemory(
@@ -329,7 +235,6 @@ MainComponent::MainComponent()
             midi::Config::load(cfg);
             const bool currentlyOn = midi::tgOnFromString(cfg.tg[i].tgOnOff);
             sendPerfParam(i + 1, "TG", currentlyOn ? 0 : 1);
-            perfTgOnOff[i].setSelectedId(currentlyOn ? 1 : 2, juce::dontSendNotification);
             lpTgOnOff[i].setSelectedId(currentlyOn ? 1 : 2, juce::dontSendNotification);
             lpUpdateOverlay();                      // re-evaluate after toggle (MIDI case)
         };
@@ -852,9 +757,8 @@ MainComponent::MainComponent()
 
     midi::StartupLog::write("CTOR: Adding tabs");
     // ── Tabs ──
-    tabs.addTab("Left Panel",           juce::Colours::darkgrey, &leftPanelTab,           false);
-    tabs.addTab("Right Panel",          juce::Colours::darkgrey, &frontPanelTab,          false);
-    tabs.addTab("Performance Editor",   juce::Colours::darkgrey, &performanceEditorTab,   false);
+    tabs.addTab("Left Panel",  juce::Colours::darkgrey, &leftPanelTab,  false);
+    tabs.addTab("Right Panel", juce::Colours::darkgrey, &frontPanelTab, false);
     tabs.setCurrentTabIndex(0);
 
     midi::StartupLog::write("CTOR: setSize + refreshPage");
@@ -878,44 +782,6 @@ void MainComponent::resized()
     tabs.setBounds(area);
     tabs.resized();
     midi::StartupLog::write("resized() tabs done");
-
-    // ── Performance Editor layout ──
-    {
-        auto pe = performanceEditorTab.getLocalBounds().reduced(8);
-        const int colW[] = { 30, 50, 120, 60, 70, 70, 60, 60, 60, 70, 55 };
-        const int rowH = 28;
-        const int hdrH = 22;
-        const int gap = 2;
-
-        auto hdrRow = pe.removeFromTop(hdrH);
-        juce::Label* hdrs[] = { &perfHdrTg, &perfHdrOnOff, &perfHdrPrst, &perfHdrChan,
-                                &perfHdrLow, &perfHdrHigh, &perfHdrDet, &perfHdrShft,
-                                &perfHdrVol, &perfHdrOut, &perfHdrDamp };
-        for (int c = 0; c < 11; ++c)
-        {
-            hdrs[c]->setBounds(hdrRow.removeFromLeft(colW[c]));
-            hdrRow.removeFromLeft(gap);
-        }
-        pe.removeFromTop(2);
-
-        for (int i = 0; i < 8; ++i)
-        {
-            auto row = pe.removeFromTop(rowH);
-            perfTgNum[i].setBounds(row.removeFromLeft(colW[0]));      row.removeFromLeft(gap);
-            perfTgOnOff[i].setBounds(row.removeFromLeft(colW[1]));    row.removeFromLeft(gap);
-            perfTgPreset[i].setBounds(row.removeFromLeft(colW[2]));   row.removeFromLeft(gap);
-            perfTgRxCh[i].setBounds(row.removeFromLeft(colW[3]));     row.removeFromLeft(gap);
-            perfTgNoteLow[i].setBounds(row.removeFromLeft(colW[4]));  row.removeFromLeft(gap);
-            perfTgNoteHigh[i].setBounds(row.removeFromLeft(colW[5])); row.removeFromLeft(gap);
-            perfTgDetune[i].setBounds(row.removeFromLeft(colW[6]));   row.removeFromLeft(gap);
-            perfTgShift[i].setBounds(row.removeFromLeft(colW[7]));    row.removeFromLeft(gap);
-            perfTgVol[i].setBounds(row.removeFromLeft(colW[8]));      row.removeFromLeft(gap);
-            perfTgOut[i].setBounds(row.removeFromLeft(colW[9]));      row.removeFromLeft(gap);
-            perfTgDamp[i].setBounds(row.removeFromLeft(colW[10]));
-            pe.removeFromTop(2);
-        }
-        perfStatus.setBounds(pe.removeFromTop(24));
-    }
 
     // ── Front Panel layout — fixed-size panel image with PanelButton hit-rects ──
     {
@@ -1445,15 +1311,12 @@ void MainComponent::sendReboot()
 }
 
 
-// ── Performance Editor ──
+// ── Performance parameter send (used by Left Panel parameter strip) ──
 
 void MainComponent::sendPerfParam(int tg1to8, const juce::String& paramName, int userValue)
 {
     if (! midiSender || ! midiSender->isOpen())
-    {
-        perfStatus.setText("Open MIDI Out first", juce::dontSendNotification);
         return;
-    }
 
     midi::ConfigState cfg;
     midi::Config::load(cfg);
@@ -1476,8 +1339,6 @@ void MainComponent::sendPerfParam(int tg1to8, const juce::String& paramName, int
         midi::Config::save(cfg);
         setTgLed(1, userValue != 0);
         updateLcdFromConfig();
-        perfStatus.setText(juce::String("TG1 = ") + (userValue != 0 ? "On" : "Off") + " sent",
-                           juce::dontSendNotification);
         return;
     }
 
@@ -1595,30 +1456,7 @@ void MainComponent::sendPerfParam(int tg1to8, const juce::String& paramName, int
     else if ((paramName == "PRESET" || paramName == "RXCH") && i == selectedTg)
         setLcdLine(0, buildVoiceSelectLine());
 
-    perfStatus.setText(ok ? (paramName + juce::String(tg1to8) + " = " + juce::String(userValue) + " sent")
-                          : "Send failed", juce::dontSendNotification);
-}
-
-void MainComponent::updatePerfControlsFromConfig()
-{
-    midi::ConfigState cfg;
-    if (! midi::Config::load(cfg) || ! cfg.hasPerformanceParams) return;
-
-    for (int i = 0; i < 8; ++i)
-    {
-        const auto& t = cfg.tg[i];
-        perfTgOnOff[i].setSelectedId(midi::tgOnFromString(t.tgOnOff) ? 2 : 1, juce::dontSendNotification);
-        perfTgPreset[i].setSelectedId(juce::jlimit(1, 32, midi::presetToVnum(t.preset)), juce::dontSendNotification);
-        perfTgRxCh[i].setSelectedId(juce::jlimit(1, 17, midi::rxchFromString(t.rxch)), juce::dontSendNotification);
-        perfTgNoteLow[i].setValue(midi::noteNameToMidi(t.noteLow), juce::dontSendNotification);
-        perfTgNoteHigh[i].setValue(midi::noteNameToMidi(t.noteHigh), juce::dontSendNotification);
-        perfTgDetune[i].setValue(t.detune.getIntValue(), juce::dontSendNotification);
-        perfTgShift[i].setValue(t.noteShift.getIntValue(), juce::dontSendNotification);
-        perfTgVol[i].setValue(t.outVol.getIntValue(), juce::dontSendNotification);
-        perfTgOut[i].setSelectedId(midi::panToOutch(t.pan) + 1, juce::dontSendNotification);
-        perfTgDamp[i].setSelectedId(midi::fdampFromString(t.fDamp) == 0 ? 1 : 2, juce::dontSendNotification);
-    }
-    refreshPerfPresetDropdowns();
+    juce::ignoreUnused(ok);
 }
 
 void MainComponent::setTgLed(int tg1to8, bool on)
@@ -1777,9 +1615,7 @@ void MainComponent::refreshPerfPresetDropdowns()
 
     for (int i = 0; i < 8; ++i)
     {
-        const int perfId = perfTgPreset[i].getSelectedId();
-        const int lpId   = lpTgPreset[i].getSelectedId();
-        perfTgPreset[i].clear(juce::dontSendNotification);
+        const int lpId = lpTgPreset[i].getSelectedId();
         lpTgPreset[i].clear(juce::dontSendNotification);
         for (int p = 1; p <= 32; ++p)
         {
@@ -1790,10 +1626,8 @@ void MainComponent::refreshPerfPresetDropdowns()
                 if (name.isNotEmpty() && name != "empty")
                     label += " " + name;
             }
-            perfTgPreset[i].addItem(label, p);
             lpTgPreset[i].addItem(label, p);
         }
-        perfTgPreset[i].setSelectedId(perfId, juce::dontSendNotification);
         lpTgPreset[i].setSelectedId(lpId, juce::dontSendNotification);
     }
 }
