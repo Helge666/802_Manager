@@ -311,6 +311,91 @@ private:
     juce::ComboBox lpTgOut[8];
     juce::ComboBox lpTgDamp[8];
 
+    // ── Left Panel inline Preset Browser ──────────────────────────────────────
+    // Per-TG browser state: saved/restored when the user switches TG buttons.
+    struct LpBrowserState
+    {
+        juce::String filterText;
+        int  ratingId    { 1 };   // ComboBox selectedId (1=Any)
+        int  currentPage { 1 };
+        int  totalRows   { 0 };
+        juce::Array<storage::PresetRow> currentRows;
+    };
+    LpBrowserState lpBrowserState[8];
+    int lpCurrentPage { 1 };   // mirrors lpBrowserState[selectedTg].currentPage
+
+    // ListBoxModel for the LP preset list (one shared instance)
+    class LpPresetModel : public juce::ListBoxModel
+    {
+    public:
+        explicit LpPresetModel(MainComponent& o) : owner(o) {}
+        int        getNumRows() override;
+        void       paintListBoxItem(int row, juce::Graphics& g,
+                                    int width, int height, bool selected) override;
+        void       listBoxItemClicked(int row, const juce::MouseEvent&) override;
+    private:
+        MainComponent& owner;
+    };
+    LpPresetModel lpPresetModel { *this };
+
+    // Column-header bar above the LP preset list
+    class LpPresetHeader : public juce::Component
+    {
+    public:
+        explicit LpPresetHeader(MainComponent& o) : owner(o) {}
+        void paint(juce::Graphics& g) override;
+    private:
+        MainComponent& owner;
+    };
+    LpPresetHeader lpPresetHeader { *this };
+
+    // Container for all browser controls (needs paint() to be rendered by JUCE)
+    struct LpBrowserSection : public juce::Component
+    {
+        void paint(juce::Graphics& g) override { g.fillAll(juce::Colour(0xFF181818)); }
+    };
+    LpBrowserSection lpBrowserSection;
+
+    // Semi-transparent overlay covering the browser when the selected TG is Off
+    struct LpBrowserOverlay : public juce::Component
+    {
+        void paint(juce::Graphics& g) override
+        {
+            g.fillAll(juce::Colours::black.withAlpha(0.55f));
+            g.setColour(juce::Colours::grey);
+            g.setFont(juce::Font(14.0f, juce::Font::bold));
+            g.drawText("TG is Off", getLocalBounds(), juce::Justification::centred);
+        }
+    };
+    LpBrowserOverlay lpBrowserOverlay;
+
+    // Browser controls (one shared set, state swapped on TG switch)
+    juce::Label      lpFilterLabel         { {}, "Filter:" };
+    juce::TextEditor lpFilterEdit;
+    juce::Label      lpRatingLabel         { {}, "Rating:" };
+    juce::ComboBox   lpRatingFilterCombo;
+    juce::ListBox    lpPresetList          { "LP Presets", nullptr };
+    juce::Label      lpBrowserStatusLabel;
+    juce::TextButton lpFirstPage           { "First" };
+    juce::TextButton lpPrevPage            { "Prev" };
+    juce::TextButton lpNextPage            { "Next" };
+    juce::TextButton lpLastPage            { "Last" };
+
+    // Bank panel (lpBankList shares bankModel with the Preset Browser tab's bankList)
+    juce::ListBox    lpBankList            { "LP Bank", nullptr };
+    juce::Label      lpBankHeader          { {}, "" };
+    juce::TextButton lpInitBankButton      { "Clear" };
+    juce::TextButton lpRandomizeBankButton { "Random" };
+    juce::TextButton lpSendBankButton      { "Send" };
+    juce::Label      lpBankNote            { {}, "NOTE: change # of patches to send in Settings" };
+
+    // LP browser methods
+    void lpRefreshPresets();
+    void lpPresetItemClicked(int row);
+    void lpSaveBrowserState();
+    void lpRestoreBrowserState(int tg0based);
+    void lpUpdateOverlay();
+
     // Front Panel tab — maps to TX802-Panel-Right.png
     // See PanelLayout::Right for pixel positions of physical buttons.
     FrontPanelTab frontPanelTab;
