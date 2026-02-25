@@ -408,6 +408,14 @@ MainComponent::MainComponent()
         lpRandomizeBankButton.onClick  = [this]{ randomizeBank(); };
         lpSendBankButton.onClick       = [this]{ sendBankToDevice(); };
 
+        // Auto-send toggle + button
+        lpAutoSendButton.onClick = [this]{ sendBankToDevice(); };
+        lpAutoSendToggle.onStateChange = [this]{
+            const bool on = lpAutoSendToggle.getToggleState();
+            lpAutoSendButton.setButtonText(on ? "Auto" : "Send");
+            lpAutoSendButton.setEnabled(!on);
+        };
+
         // Add controls to the section container
         lpBrowserSection.addAndMakeVisible(lpFilterEdit);
         lpBrowserSection.addAndMakeVisible(lpRatingFilterCombo);
@@ -416,6 +424,8 @@ MainComponent::MainComponent()
             b->setLookAndFeel(&navButtonLaf);
             lpBrowserSection.addAndMakeVisible(b);
         }
+        lpBrowserSection.addAndMakeVisible(lpAutoSendToggle);
+        lpBrowserSection.addAndMakeVisible(lpAutoSendButton);
         lpBrowserSection.addAndMakeVisible(lpPresetHeader);
         lpBrowserSection.addAndMakeVisible(lpPresetList);
         lpBrowserSection.addAndMakeVisible(lpBrowserStatusLabel);
@@ -948,7 +958,9 @@ void MainComponent::resized()
         lpFirstPage.setBounds(filterRow.removeFromLeft(navW));          filterRow.removeFromLeft(gap);
         lpPrevPage.setBounds(filterRow.removeFromLeft(navW));           filterRow.removeFromLeft(gap);
         lpNextPage.setBounds(filterRow.removeFromLeft(navW));           filterRow.removeFromLeft(gap);
-        lpLastPage.setBounds(filterRow.removeFromLeft(navW));
+        lpLastPage.setBounds(filterRow.removeFromLeft(navW));           filterRow.removeFromLeft(8);
+        lpAutoSendToggle.setBounds(filterRow.removeFromLeft(rowH));     filterRow.removeFromLeft(gap);
+        lpAutoSendButton.setBounds(filterRow.removeFromLeft(42));
         area.removeFromTop(gap);
 
         // Split remaining area: left = preset list, right = bank
@@ -1644,6 +1656,10 @@ void MainComponent::lpPresetItemClicked(int row)
     // Place the preset into the bank slot corresponding to the selected TG (0-based)
     if (juce::isPositiveAndBelow(selectedTg, bankSlotIds.size()))
         setBankSlotFromPreset(selectedTg, r.id, r.presetName);
+
+    // Auto-send: if the toggle is on, send immediately as if the user clicked Send
+    if (lpAutoSendToggle.getToggleState())
+        sendBankToDevice();
 }
 
 void MainComponent::lpSaveBrowserState()
