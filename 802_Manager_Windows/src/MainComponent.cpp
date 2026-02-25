@@ -431,12 +431,8 @@ MainComponent::MainComponent()
         lpBrowserSection.addAndMakeVisible(lpPresetHeader);
         lpBrowserSection.addAndMakeVisible(lpPresetList);
         lpBrowserSection.addAndMakeVisible(lpBrowserStatusLabel);
-        lpBrowserSection.addAndMakeVisible(lpBankHeader);
-        lpBrowserSection.addAndMakeVisible(lpBankList);
-        lpBrowserSection.addAndMakeVisible(lpInitBankButton);
-        lpBrowserSection.addAndMakeVisible(lpRandomizeBankButton);
-        lpBrowserSection.addAndMakeVisible(lpSendBankButton);
-        lpBrowserSection.addAndMakeVisible(lpBankNote);
+        // lpBankHeader, lpBankList, lpInitBankButton, lpSendBankButton, lpBankNote removed from view.
+        // lpRandomizeBankButton kept in code (onClick still wired) for future placement.
         lpBrowserSection.addChildComponent(lpBrowserOverlay);  // shown when TG is Off
 
         leftPanelTab.addAndMakeVisible(lpBrowserSection);
@@ -967,28 +963,12 @@ void MainComponent::resized()
         lpAutoSendButton.setBounds(filterRow.removeFromLeft(42));
         area.removeFromTop(gap);
 
-        // Split remaining area: left = preset list, right = bank
-        const int bankW = 200;
-        auto rightArea = area.removeFromRight(bankW);
-        area.removeFromRight(6);
-
-        // Left: preset header + list + status
+        // Preset list fills full width
         auto statusRow = area.removeFromBottom(18);
         lpBrowserStatusLabel.setBounds(statusRow);
         auto presetHdrRow = area.removeFromTop(18);
         lpPresetHeader.setBounds(presetHdrRow);
         lpPresetList.setBounds(area);
-
-        // Right: bank header + list + note + buttons
-        auto bankBtnRow = rightArea.removeFromBottom(rowH);
-        lpInitBankButton.setBounds(bankBtnRow.removeFromLeft(42));       bankBtnRow.removeFromLeft(gap);
-        lpRandomizeBankButton.setBounds(bankBtnRow.removeFromLeft(54));  bankBtnRow.removeFromLeft(gap);
-        lpSendBankButton.setBounds(bankBtnRow.removeFromLeft(42));
-        auto bankNoteRow = rightArea.removeFromBottom(16);
-        lpBankNote.setBounds(bankNoteRow);
-        auto bankHdrRow = rightArea.removeFromTop(18);
-        lpBankHeader.setBounds(bankHdrRow);
-        lpBankList.setBounds(rightArea);
     }
 
     // ── Right Panel macro strip + settings section layout ──
