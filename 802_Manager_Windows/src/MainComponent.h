@@ -1,6 +1,8 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <juce_audio_devices/juce_audio_devices.h>
+#include <BinaryData.h>
 #include "midi/MidiSender.h"
 #include "midi/MidiThru.h"
 #include "storage/PresetsDb.h"
@@ -72,6 +74,61 @@ private:
         bool over { false };
         bool selected { false };
     };
+
+    // LookAndFeel override for the four navigation buttons.
+    // Draws vector icons (filled triangles + bar) so no font is needed.
+    // Button labels encode the shape: "first" ⏮, "prev" ◀, "next" ▶, "last" ⏭.
+    struct NavButtonLookAndFeel : public juce::LookAndFeel_V4
+    {
+        void drawButtonText(juce::Graphics& g, juce::TextButton& b,
+                            bool /*isOver*/, bool isDown) override
+        {
+            const auto label = b.getButtonText();
+            const auto bounds = b.getLocalBounds().toFloat().reduced(4.0f);
+            const float cx = bounds.getCentreX();
+            const float cy = bounds.getCentreY();
+            const float sz = std::min(bounds.getWidth(), bounds.getHeight()) * 0.38f;
+            const float barW = sz * 0.30f;
+            const float gap  = sz * 0.15f;
+
+            g.setColour(b.findColour(juce::TextButton::textColourOffId)
+                         .withMultipliedAlpha(isDown ? 0.6f : 1.0f));
+
+            juce::Path tri;
+            if (label == "first")   // ⏮  bar | + left-pointing triangle
+            {
+                // triangle pointing left
+                tri.addTriangle(cx + sz - barW - gap,        cy - sz,
+                                cx + sz - barW - gap,        cy + sz,
+                                cx - sz + barW + gap,        cy);
+                g.fillPath(tri);
+                g.fillRect(cx - sz, cy - sz, barW, sz * 2.0f);
+            }
+            else if (label == "prev")   // ◀  left-pointing triangle
+            {
+                tri.addTriangle(cx + sz, cy - sz,
+                                cx + sz, cy + sz,
+                                cx - sz, cy);
+                g.fillPath(tri);
+            }
+            else if (label == "next")   // ▶  right-pointing triangle
+            {
+                tri.addTriangle(cx - sz, cy - sz,
+                                cx - sz, cy + sz,
+                                cx + sz, cy);
+                g.fillPath(tri);
+            }
+            else if (label == "last")   // ⏭  right-pointing triangle + bar |
+            {
+                tri.addTriangle(cx - sz + barW + gap,        cy - sz,
+                                cx - sz + barW + gap,        cy + sz,
+                                cx + sz - barW - gap,        cy);
+                g.fillPath(tri);
+                g.fillRect(cx + sz - barW, cy - sz, barW, sz * 2.0f);
+            }
+        }
+    };
+    NavButtonLookAndFeel navButtonLaf;
 
     // Horizontal bank strip — 8 equal cells showing slot#:name between panel image and perf strip.
     // Read-only view of bankModel; call repaint() whenever the bank changes.
@@ -298,10 +355,10 @@ private:
     juce::ComboBox   lpRatingFilterCombo;
     juce::ListBox    lpPresetList          { "LP Presets", nullptr };
     juce::Label      lpBrowserStatusLabel;
-    juce::TextButton lpFirstPage           { "First" };
-    juce::TextButton lpPrevPage            { "Prev" };
-    juce::TextButton lpNextPage            { "Next" };
-    juce::TextButton lpLastPage            { "Last" };
+    juce::TextButton lpFirstPage           { "first" };
+    juce::TextButton lpPrevPage            { "prev"  };
+    juce::TextButton lpNextPage            { "next"  };
+    juce::TextButton lpLastPage            { "last"  };
 
     // Bank panel (lpBankList shares bankModel with the Preset Browser tab's bankList)
     juce::ListBox    lpBankList            { "LP Bank", nullptr };
