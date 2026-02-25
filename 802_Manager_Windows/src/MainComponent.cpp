@@ -44,6 +44,8 @@ static juce::MemoryBlock getInitVoice128()
 
 MainComponent::~MainComponent()
 {
+    for (auto* b : { &lpFirstPage, &lpPrevPage, &lpNextPage, &lpLastPage })
+        b->setLookAndFeel(nullptr);
     if (bankSendThread)
     {
         bankSendThread->stopThread(8000);
@@ -367,6 +369,8 @@ MainComponent::MainComponent()
         lpBankNote.setFont(juce::Font(11.0f));
         lpBankNote.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
 
+        lpFilterEdit.setTextToShowWhenEmpty("Filter...", juce::Colours::grey);
+
         // Filter/rating callbacks — save state then refresh
         auto lpRefresh = [this]{ lpRefreshPresets(); };
         lpFilterEdit.onTextChange = [this, lpRefresh]{
@@ -405,14 +409,13 @@ MainComponent::MainComponent()
         lpSendBankButton.onClick       = [this]{ sendBankToDevice(); };
 
         // Add controls to the section container
-        lpBrowserSection.addAndMakeVisible(lpFilterLabel);
         lpBrowserSection.addAndMakeVisible(lpFilterEdit);
-        lpBrowserSection.addAndMakeVisible(lpRatingLabel);
         lpBrowserSection.addAndMakeVisible(lpRatingFilterCombo);
-        lpBrowserSection.addAndMakeVisible(lpFirstPage);
-        lpBrowserSection.addAndMakeVisible(lpPrevPage);
-        lpBrowserSection.addAndMakeVisible(lpNextPage);
-        lpBrowserSection.addAndMakeVisible(lpLastPage);
+        for (auto* b : { &lpFirstPage, &lpPrevPage, &lpNextPage, &lpLastPage })
+        {
+            b->setLookAndFeel(&navButtonLaf);
+            lpBrowserSection.addAndMakeVisible(b);
+        }
         lpBrowserSection.addAndMakeVisible(lpPresetHeader);
         lpBrowserSection.addAndMakeVisible(lpPresetList);
         lpBrowserSection.addAndMakeVisible(lpBrowserStatusLabel);
@@ -937,16 +940,15 @@ void MainComponent::resized()
         auto area = lpBrowserSection.getLocalBounds().reduced(6);
         const int rowH = 24, gap = 4, btnW = 50;
 
-        // Top row: filter + rating + pagination buttons
+        // Top row: filter | rating | ⏮ ◀ ▶ ⏭  (all left-aligned, compact)
+        const int navW = 28;
         auto filterRow = area.removeFromTop(rowH);
-        lpFilterLabel.setBounds(filterRow.removeFromLeft(48));          filterRow.removeFromLeft(4);
-        lpFilterEdit.setBounds(filterRow.removeFromLeft(180));          filterRow.removeFromLeft(10);
-        lpRatingLabel.setBounds(filterRow.removeFromLeft(48));          filterRow.removeFromLeft(4);
-        lpRatingFilterCombo.setBounds(filterRow.removeFromLeft(90));
-        lpLastPage.setBounds(filterRow.removeFromRight(btnW));          filterRow.removeFromRight(gap);
-        lpNextPage.setBounds(filterRow.removeFromRight(btnW));          filterRow.removeFromRight(gap);
-        lpPrevPage.setBounds(filterRow.removeFromRight(btnW));          filterRow.removeFromRight(gap);
-        lpFirstPage.setBounds(filterRow.removeFromRight(btnW));
+        lpFilterEdit.setBounds(filterRow.removeFromLeft(200));          filterRow.removeFromLeft(8);
+        lpRatingFilterCombo.setBounds(filterRow.removeFromLeft(100));   filterRow.removeFromLeft(8);
+        lpFirstPage.setBounds(filterRow.removeFromLeft(navW));          filterRow.removeFromLeft(gap);
+        lpPrevPage.setBounds(filterRow.removeFromLeft(navW));           filterRow.removeFromLeft(gap);
+        lpNextPage.setBounds(filterRow.removeFromLeft(navW));           filterRow.removeFromLeft(gap);
+        lpLastPage.setBounds(filterRow.removeFromLeft(navW));
         area.removeFromTop(gap);
 
         // Split remaining area: left = preset list, right = bank

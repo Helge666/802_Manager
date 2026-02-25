@@ -34,6 +34,7 @@ juce_add_binary_data(GuiAssets SOURCES
     ../assets/gui/TX802-Panel-Right.png
     ../assets/gui/TX802-Panel-Left.png
     ../assets/gui/LED-On.png
+    ../assets/fonts/NotoSansSymbols2-Regular.ttf
 )
 
 juce_add_gui_app(802_Manager_Windows_App
