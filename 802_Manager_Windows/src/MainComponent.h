@@ -73,6 +73,16 @@ private:
         bool selected { false };
     };
 
+    // Horizontal bank strip — 8 equal cells showing slot#:name between panel image and perf strip.
+    // Read-only view of bankModel; call repaint() whenever the bank changes.
+    struct LpBankStrip : public juce::Component
+    {
+        explicit LpBankStrip(MainComponent& o) : owner(o) {}
+        void paint(juce::Graphics& g) override;
+    private:
+        MainComponent& owner;
+    };
+
     // Custom tab component that draws the panel image as its background
     class FrontPanelTab : public juce::Component
     {
@@ -198,6 +208,7 @@ private:
     {
         void paint(juce::Graphics& g) override { g.fillAll(juce::Colour(0xFF1E1E1E)); }
     };
+    LpBankStrip   lpBankStrip  { *this };
     LpPerfSection lpPerfSection;
     juce::Label lpHdrTg   { {}, "#" };
     juce::Label lpHdrOnOff{ {}, "TG" };
