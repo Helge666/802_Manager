@@ -340,6 +340,7 @@ MainComponent::MainComponent()
             lpPerfSection.addChildComponent(lpTgDamp[i]);
             lpTgDamp[i].onChange = [this, tg, i]{ sendPerfParam(tg, "FDAMP", lpTgDamp[i].getSelectedId() == 2 ? 1 : 0); };
         }
+        leftPanelTab.addAndMakeVisible(lpBankStrip);
         leftPanelTab.addAndMakeVisible(lpPerfSection);
     }
 
@@ -730,6 +731,7 @@ MainComponent::MainComponent()
             bankModel.setNumSlots(visibleSlots);
             lpBankList.updateContent();
             lpBankList.repaint();
+            lpBankStrip.repaint();
         }
     };
     devIdSlider.onValueChange = [this]{
@@ -872,9 +874,12 @@ void MainComponent::resized()
         float scale = disp ? (float)disp->scale : 1.0f;
         const int panelBottom = juce::roundToInt(kPanelHeight / scale);
         const int sectionW    = juce::roundToInt(kPanelWidth  / scale);
+        // Horizontal bank strip sits immediately below the panel image
+        const int bankStripH  = 28;
+        lpBankStrip.setBounds(0, panelBottom + 4, sectionW, bankStripH);
         // Strip height: 8px reduced padding + 22px header + 2px gap + 28px row + 8px padding = 68px
         const int lpStripH    = 68;
-        lpPerfSection.setBounds(0, panelBottom + 4, sectionW, lpStripH);
+        lpPerfSection.setBounds(0, panelBottom + 4 + bankStripH + 4, sectionW, lpStripH);
 
         const int colW[] = { 30, 50, 120, 60, 70, 70, 60, 60, 60, 70, 55 };
         const int rowH = 28, hdrH = 22, gap = 2;
@@ -920,8 +925,9 @@ void MainComponent::resized()
         float scale = disp ? (float)disp->scale : 1.0f;
         const int panelBottom = juce::roundToInt(kPanelHeight / scale);
         const int sectionW    = juce::roundToInt(kPanelWidth  / scale);
+        const int bankStripH  = 28;
         const int lpStripH    = 68;
-        const int browserTop  = panelBottom + 4 + lpStripH + 4;
+        const int browserTop  = panelBottom + 4 + bankStripH + 4 + lpStripH + 4;
         const int browserH    = juce::jmax(0, getHeight() - tabs.getTabBarDepth() - browserTop);
         lpBrowserSection.setBounds(0, browserTop, sectionW, browserH);
 
@@ -1064,6 +1070,47 @@ void MainComponent::LpPresetHeader::paint(juce::Graphics& g)
 
 // ── Bank slot DnD components ──
 
+void MainComponent::LpBankStrip::paint(juce::Graphics& g)
+{
+    g.fillAll(juce::Colour(0xFF1E1E1E));
+
+    const int n = owner.visibleSlots;
+    if (n == 0) return;
+
+    const float cellW = (float)getWidth() / (float)n;
+    const int   h     = getHeight();
+
+    g.setFont(juce::Font(12.0f));
+
+    for (int i = 0; i < n; ++i)
+    {
+        const int x0 = juce::roundToInt(i * cellW);
+        const int x1 = juce::roundToInt((i + 1) * cellW);
+        const int cw = x1 - x0;
+
+        // Subtle alternating tint
+        if (i % 2 == 1)
+        {
+            g.setColour(juce::Colours::white.withAlpha(0.04f));
+            g.fillRect(x0, 0, cw, h);
+        }
+
+        // Cell divider
+        if (i > 0)
+        {
+            g.setColour(juce::Colours::white.withAlpha(0.2f));
+            g.drawVerticalLine(x0, 2.0f, (float)(h - 2));
+        }
+
+        // Label: centred patch name, empty slots shown as "-"
+        const auto slotName = owner.bankModel.getSlotName(i);
+        const bool empty    = slotName.isEmpty() || slotName == "empty";
+        const auto text     = empty ? juce::String("-") : slotName;
+        g.setColour(empty ? juce::Colours::darkgrey : juce::Colours::lightgrey);
+        g.drawText(text, x0 + 4, 0, cw - 8, h, juce::Justification::centred, true);
+    }
+}
+
 void MainComponent::BankSlotComponent::paint(juce::Graphics& g)
 {
     if (owner.bankModel.getSlotName(index).isEmpty()) return;
@@ -1129,6 +1176,7 @@ void MainComponent::setBankSlotFromPreset(int slotIndex, int presetId, const juc
     bankModel.setSlotName(slotIndex, name);
     lpBankList.updateContent();
     lpBankList.repaintRow(slotIndex);
+    lpBankStrip.repaint();
 }
 
 void MainComponent::moveBankSlot(int fromIndex, int toIndex)
@@ -1142,6 +1190,7 @@ void MainComponent::moveBankSlot(int fromIndex, int toIndex)
     bankModel.setSlotName(toIndex, fromName);
     lpBankList.updateContent();
     lpBankList.repaint();
+    lpBankStrip.repaint();
 }
 
 void MainComponent::initBank()
@@ -1153,6 +1202,7 @@ void MainComponent::initBank()
     }
     lpBankList.updateContent();
     lpBankList.repaint();
+    lpBankStrip.repaint();
 }
 
 void MainComponent::randomizeBank()
@@ -1188,6 +1238,7 @@ void MainComponent::randomizeBank()
     }
     lpBankList.updateContent();
     lpBankList.repaint();
+    lpBankStrip.repaint();
 }
 
 void MainComponent::sendBankToDevice()
