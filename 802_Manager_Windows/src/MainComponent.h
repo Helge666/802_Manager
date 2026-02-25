@@ -290,6 +290,16 @@ private:
     juce::ComboBox lpTgOut[8];
     juce::ComboBox lpTgDamp[8];
 
+    // Thin 1px vertical rule for visual grouping in the filter row.
+    struct VRule : public juce::Component
+    {
+        void paint(juce::Graphics& g) override
+        {
+            g.setColour(juce::Colours::white.withAlpha(0.20f));
+            g.drawVerticalLine(getWidth() / 2, 2.0f, (float)(getHeight() - 2));
+        }
+    };
+
     // ── Left Panel inline Preset Browser ──────────────────────────────────────
     // Per-TG browser state: saved/restored when the user switches TG buttons.
     struct LpBrowserState
@@ -361,6 +371,7 @@ private:
     juce::TextButton   lpLastPage            { "last"  };
     juce::ToggleButton lpAutoSendToggle;
     juce::TextButton   lpAutoSendButton      { "Send"  };
+    VRule              lpSep1, lpSep2;   // separators: after Rating, after nav symbols
 
     // Bank panel (lpBankList shares bankModel with the Preset Browser tab's bankList)
     juce::ListBox    lpBankList            { "LP Bank", nullptr };

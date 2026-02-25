@@ -426,6 +426,8 @@ MainComponent::MainComponent()
         }
         lpBrowserSection.addAndMakeVisible(lpAutoSendToggle);
         lpBrowserSection.addAndMakeVisible(lpAutoSendButton);
+        lpBrowserSection.addAndMakeVisible(lpSep1);
+        lpBrowserSection.addAndMakeVisible(lpSep2);
         lpBrowserSection.addAndMakeVisible(lpPresetHeader);
         lpBrowserSection.addAndMakeVisible(lpPresetList);
         lpBrowserSection.addAndMakeVisible(lpBrowserStatusLabel);
@@ -953,12 +955,14 @@ void MainComponent::resized()
         // Top row: filter | rating | ⏮ ◀ ▶ ⏭  (all left-aligned, compact)
         const int navW = 28;
         auto filterRow = area.removeFromTop(rowH);
-        lpFilterEdit.setBounds(filterRow.removeFromLeft(200));          filterRow.removeFromLeft(8);
-        lpRatingFilterCombo.setBounds(filterRow.removeFromLeft(100));   filterRow.removeFromLeft(8);
+        lpFilterEdit.setBounds(filterRow.removeFromLeft(200));          filterRow.removeFromLeft(6);
+        lpRatingFilterCombo.setBounds(filterRow.removeFromLeft(100));   filterRow.removeFromLeft(6);
+        lpSep1.setBounds(filterRow.removeFromLeft(1));                  filterRow.removeFromLeft(6);
         lpFirstPage.setBounds(filterRow.removeFromLeft(navW));          filterRow.removeFromLeft(gap);
         lpPrevPage.setBounds(filterRow.removeFromLeft(navW));           filterRow.removeFromLeft(gap);
         lpNextPage.setBounds(filterRow.removeFromLeft(navW));           filterRow.removeFromLeft(gap);
-        lpLastPage.setBounds(filterRow.removeFromLeft(navW));           filterRow.removeFromLeft(8);
+        lpLastPage.setBounds(filterRow.removeFromLeft(navW));           filterRow.removeFromLeft(6);
+        lpSep2.setBounds(filterRow.removeFromLeft(1));                  filterRow.removeFromLeft(6);
         lpAutoSendToggle.setBounds(filterRow.removeFromLeft(rowH));     filterRow.removeFromLeft(gap);
         lpAutoSendButton.setBounds(filterRow.removeFromLeft(42));
         area.removeFromTop(gap);
