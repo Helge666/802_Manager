@@ -355,10 +355,12 @@ private:
     juce::ComboBox   lpRatingFilterCombo;
     juce::ListBox    lpPresetList          { "LP Presets", nullptr };
     juce::Label      lpBrowserStatusLabel;
-    juce::TextButton lpFirstPage           { "first" };
-    juce::TextButton lpPrevPage            { "prev"  };
-    juce::TextButton lpNextPage            { "next"  };
-    juce::TextButton lpLastPage            { "last"  };
+    juce::TextButton   lpFirstPage           { "first" };
+    juce::TextButton   lpPrevPage            { "prev"  };
+    juce::TextButton   lpNextPage            { "next"  };
+    juce::TextButton   lpLastPage            { "last"  };
+    juce::ToggleButton lpAutoSendToggle;
+    juce::TextButton   lpAutoSendButton      { "Send"  };
 
     // Bank panel (lpBankList shares bankModel with the Preset Browser tab's bankList)
     juce::ListBox    lpBankList            { "LP Bank", nullptr };
