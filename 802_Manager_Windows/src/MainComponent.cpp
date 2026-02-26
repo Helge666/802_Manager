@@ -296,51 +296,67 @@ MainComponent::MainComponent()
             lpPerfSection.addChildComponent(lpTgRxCh[i]);
             lpTgRxCh[i].onChange = [this, tg, i]{ sendPerfParam(tg, "RXCH", lpTgRxCh[i].getSelectedId()); };
 
-            lpTgNoteLow[i].setRange(0, 127, 1);
-            lpTgNoteLow[i].setValue(midi::noteNameToMidi(t.noteLow), juce::dontSendNotification);
-            lpTgNoteLow[i].setSliderStyle(juce::Slider::IncDecButtons);
-            lpTgNoteLow[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 36, 20);
+            // Low / High — ComboBox with MIDI note names (C-2 … G8, Yamaha convention)
+            for (int n = 0; n < 128; ++n)
+                lpTgNoteLow[i].addItem(midi::midiToNoteName(n), n + 1);
+            lpTgNoteLow[i].setSelectedId(midi::noteNameToMidi(t.noteLow) + 1, juce::dontSendNotification);
             lpPerfSection.addChildComponent(lpTgNoteLow[i]);
-            lpTgNoteLow[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "NOTELOW", (int) lpTgNoteLow[i].getValue()); };
+            lpTgNoteLow[i].onChange = [this, tg, i]{ sendPerfParam(tg, "NOTELOW", lpTgNoteLow[i].getSelectedId() - 1); };
 
-            lpTgNoteHigh[i].setRange(0, 127, 1);
-            lpTgNoteHigh[i].setValue(midi::noteNameToMidi(t.noteHigh), juce::dontSendNotification);
-            lpTgNoteHigh[i].setSliderStyle(juce::Slider::IncDecButtons);
-            lpTgNoteHigh[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 36, 20);
+            for (int n = 0; n < 128; ++n)
+                lpTgNoteHigh[i].addItem(midi::midiToNoteName(n), n + 1);
+            lpTgNoteHigh[i].setSelectedId(midi::noteNameToMidi(t.noteHigh) + 1, juce::dontSendNotification);
             lpPerfSection.addChildComponent(lpTgNoteHigh[i]);
-            lpTgNoteHigh[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "NOTEHIGH", (int) lpTgNoteHigh[i].getValue()); };
+            lpTgNoteHigh[i].onChange = [this, tg, i]{ sendPerfParam(tg, "NOTEHIGH", lpTgNoteHigh[i].getSelectedId() - 1); };
 
+            // Det / Shft / Vol — rotary knobs
             lpTgDetune[i].setRange(-7, 7, 1);
             lpTgDetune[i].setValue(t.detune.getIntValue(), juce::dontSendNotification);
-            lpTgDetune[i].setSliderStyle(juce::Slider::IncDecButtons);
-            lpTgDetune[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 30, 20);
+            lpTgDetune[i].setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+            lpTgDetune[i].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 30, 14);
             lpPerfSection.addChildComponent(lpTgDetune[i]);
             lpTgDetune[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "DETUNE", (int) lpTgDetune[i].getValue()); };
 
             lpTgShift[i].setRange(-24, 24, 1);
             lpTgShift[i].setValue(t.noteShift.getIntValue(), juce::dontSendNotification);
-            lpTgShift[i].setSliderStyle(juce::Slider::IncDecButtons);
-            lpTgShift[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 30, 20);
+            lpTgShift[i].setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+            lpTgShift[i].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 30, 14);
             lpPerfSection.addChildComponent(lpTgShift[i]);
             lpTgShift[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "NOTESHIFT", (int) lpTgShift[i].getValue()); };
 
             lpTgVol[i].setRange(0, 99, 1);
             lpTgVol[i].setValue(t.outVol.getIntValue(), juce::dontSendNotification);
-            lpTgVol[i].setSliderStyle(juce::Slider::IncDecButtons);
-            lpTgVol[i].setTextBoxStyle(juce::Slider::TextBoxLeft, false, 30, 20);
+            lpTgVol[i].setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+            lpTgVol[i].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 30, 14);
             lpPerfSection.addChildComponent(lpTgVol[i]);
             lpTgVol[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "OUTVOL", (int) lpTgVol[i].getValue()); };
 
-            lpTgOut[i].addItem("Off", 1); lpTgOut[i].addItem("Left", 2);
-            lpTgOut[i].addItem("Right", 3); lpTgOut[i].addItem("Center", 4);
-            lpTgOut[i].setSelectedId(midi::panToOutch(t.pan) + 1, juce::dontSendNotification);
+            // Out — 3-position snap slider (L / C / R). "Off" removed.
+            // If "Off" needs to return, add it as position 0 and shift L/C/R up by 1.
+            lpTgOut[i].setRange(0, 2, 1);
+            lpTgOut[i].setSliderStyle(juce::Slider::LinearHorizontal);
+            lpTgOut[i].setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
+            lpTgOut[i].textFromValueFunction = [](double v) -> juce::String {
+                if (v < 0.5) return "L";
+                if (v < 1.5) return "C";
+                return "R";
+            };
+            {
+                const int outch = midi::panToOutch(t.pan); // 0=Off, 1=L, 2=R, 3=C
+                const int sliderPos = (outch == 1) ? 0 : (outch == 2) ? 2 : 1; // Off → C
+                lpTgOut[i].setValue(sliderPos, juce::dontSendNotification);
+            }
             lpPerfSection.addChildComponent(lpTgOut[i]);
-            lpTgOut[i].onChange = [this, tg, i]{ sendPerfParam(tg, "PAN", lpTgOut[i].getSelectedId() - 1); };
+            lpTgOut[i].onValueChange = [this, tg, i]{
+                const int panVals[] = {1, 3, 2}; // slider 0/1/2 → device PAN L/C/R
+                sendPerfParam(tg, "PAN", panVals[juce::jlimit(0, 2, (int) lpTgOut[i].getValue())]);
+            };
 
-            lpTgDamp[i].addItem("Off", 1); lpTgDamp[i].addItem("On", 2);
-            lpTgDamp[i].setSelectedId(midi::fdampFromString(t.fDamp) == 0 ? 1 : 2, juce::dontSendNotification);
+            // Damp — latching ToggleButton
+            lpTgDamp[i].setButtonText("Damp");
+            lpTgDamp[i].setToggleState(midi::fdampFromString(t.fDamp) != 0, juce::dontSendNotification);
             lpPerfSection.addChildComponent(lpTgDamp[i]);
-            lpTgDamp[i].onChange = [this, tg, i]{ sendPerfParam(tg, "FDAMP", lpTgDamp[i].getSelectedId() == 2 ? 1 : 0); };
+            lpTgDamp[i].onClick = [this, tg, i]{ sendPerfParam(tg, "FDAMP", lpTgDamp[i].getToggleState() ? 1 : 0); };
         }
         leftPanelTab.addAndMakeVisible(lpBankStrip);
         leftPanelTab.addAndMakeVisible(lpPerfSection);
@@ -888,12 +904,12 @@ void MainComponent::resized()
         // Horizontal bank strip sits immediately below the panel image
         const int bankStripH  = 28;
         lpBankStrip.setBounds(0, panelBottom + 4, sectionW, bankStripH);
-        // Strip height: 8px reduced padding + 22px header + 2px gap + 28px row + 8px padding = 68px
-        const int lpStripH    = 68;
+        // Strip height: 8px reduced padding + 22px header + 2px gap + 44px row + 8px padding = 84px
+        const int lpStripH    = 84;
         lpPerfSection.setBounds(0, panelBottom + 4 + bankStripH + 4, sectionW, lpStripH);
 
-        const int colW[] = { 30, 50, 120, 60, 70, 70, 60, 60, 60, 70, 55 };
-        const int rowH = 28, hdrH = 22, gap = 2;
+        const int colW[] = { 25, 50, 120, 55, 65, 65, 50, 50, 50, 75, 44 };
+        const int rowH = 44, hdrH = 22, gap = 2;
 
         auto area = lpPerfSection.getLocalBounds().reduced(8);
         auto hdrRow = area.removeFromTop(hdrH);

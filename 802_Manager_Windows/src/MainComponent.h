@@ -282,13 +282,13 @@ private:
     juce::ComboBox lpTgOnOff[8];
     juce::ComboBox lpTgPreset[8];
     juce::ComboBox lpTgRxCh[8];
-    juce::Slider   lpTgNoteLow[8];
-    juce::Slider   lpTgNoteHigh[8];
-    juce::Slider   lpTgDetune[8];
-    juce::Slider   lpTgShift[8];
-    juce::Slider   lpTgVol[8];
-    juce::ComboBox lpTgOut[8];
-    juce::ComboBox lpTgDamp[8];
+    juce::ComboBox     lpTgNoteLow[8];    // note name dropdown (C-2 … G8)
+    juce::ComboBox     lpTgNoteHigh[8];   // note name dropdown (C-2 … G8)
+    juce::Slider       lpTgDetune[8];     // rotary knob (-7 … +7)
+    juce::Slider       lpTgShift[8];      // rotary knob (-24 … +24)
+    juce::Slider       lpTgVol[8];        // rotary knob (0 … 99)
+    juce::Slider       lpTgOut[8];        // 3-position snap slider (L / C / R)
+    juce::ToggleButton lpTgDamp[8];       // latching toggle
 
     // Thin 1px vertical rule for visual grouping in the filter row.
     struct VRule : public juce::Component
