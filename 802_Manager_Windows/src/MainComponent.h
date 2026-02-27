@@ -244,7 +244,12 @@ private:
     void sendBankToDevice();
     void startupBankRestore();  // spawns BankSendThread to re-send startupBankData (call from message thread)
 
-    juce::TabbedComponent tabs { juce::TabbedButtonBar::TabsAtTop };
+    struct AppTabs : public juce::TabbedComponent {
+        AppTabs() : juce::TabbedComponent(juce::TabbedButtonBar::TabsAtTop) {}
+        std::function<void(int)> onTabChanged;
+        void currentTabChanged(int newIndex, const juce::String&) override
+            { if (onTabChanged) onTabChanged(newIndex); }
+    } tabs;
 
     // ─── Preset database + bank state (shared with LP browser) ──────────────────
     juce::TextButton selectDbButton { "Select DB File" };  // hosted in rpSettingsSection
@@ -414,7 +419,8 @@ private:
     juce::OwnedArray<PanelButton> lpTgButtons;
     // 0-based index of the currently selected TG (-1 = none selected).
     // Set when the user clicks a TG button; used by the sections below the panel image.
-    int selectedTg { -1 };
+    int  selectedTg      { -1 };
+    bool startupInProgress { false };  // true while startup sequence is running; keeps overlay on
     // fpTgButtons: TG1–TG8 software references (wired but not shown on panel image; lpTgButtons handles the Left Panel hit-rects)
     juce::OwnedArray<juce::TextButton> fpTgButtons;
     // Software-only macro buttons (no physical panel equivalent)

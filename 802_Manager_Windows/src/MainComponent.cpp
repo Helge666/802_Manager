@@ -227,6 +227,7 @@ MainComponent::MainComponent()
         leftPanelTab.addAndMakeVisible(btn);
         btn->onClick = [this, i]
         {
+            if (startupInProgress) return;
             selectTg(i);
 
             midi::ConfigState cfg; midi::Config::load(cfg);
@@ -469,9 +470,8 @@ MainComponent::MainComponent()
         lpBrowserSection.addAndMakeVisible(lpBrowserStatusLabel);
         // lpBankHeader, lpBankList, lpInitBankButton, lpSendBankButton, lpBankNote removed from view.
         // lpRandomizeBankButton kept in code (onClick still wired) for future placement.
-        lpBrowserSection.addChildComponent(lpBrowserOverlay);  // shown when TG is Off
-
         leftPanelTab.addAndMakeVisible(lpBrowserSection);
+        leftPanelTab.addChildComponent(lpBrowserOverlay);  // shown when TG is Off; covers perf + browser
     }
 
     // Mode select buttons: non-momentary radio group
@@ -569,6 +569,17 @@ MainComponent::MainComponent()
     fpVoiceEditI.onClick    = [this, sendBtn, deactExcept]{ deactExcept(&fpVoiceEditI);    sendBtn("VOICE_EDIT_I"); };
     fpVoiceEditII.onClick   = [this, sendBtn, deactExcept]{ deactExcept(&fpVoiceEditII);   sendBtn("VOICE_EDIT_II"); };
     fpStore.onClick         = [this, sendBtn, deactExcept]{ deactExcept(&fpStore);         sendBtn("STORE"); };
+    // On returning to Left Panel: clear any depressed mode button and restore VOICE_SELECT
+    tabs.onTabChanged = [this](int index)
+    {
+        if (index != 0) return;
+        for (auto* b : fpModeGroup) b->setActive(false);
+        if (midiSender && midiSender->isOpen())
+        {
+            midi::ConfigState cfg; midi::Config::load(cfg);
+            midi::Tx802HighLevel::sendButtonByName(*midiSender, "VOICE_SELECT", cfg.deviceId);
+        }
+    };
     // Momentary buttons
     fpYes.onClick   = [sendBtn]{ sendBtn("YES"); };
     fpNo.onClick    = [sendBtn]{ sendBtn("NO"); };
@@ -663,15 +674,18 @@ MainComponent::MainComponent()
                             if      (stage == 0) { setLcdLine(0, kLcdReset0);   setLcdLine(1, kLcdReset1);   }
                             else if (stage == 1) { setLcdLine(0, kLcdPrepare0); setLcdLine(1, kLcdPrepare1); }
                             else {
+                                startupInProgress = false;
                                 updateLcdFromConfig();
                                 if (selectedTg < 0) {
                                     midi::ConfigState cfg2; midi::Config::load(cfg2);
-                                    selectTg(cfg2.lastSelectedTg);
+                                    selectTg(cfg2.lastSelectedTg);  // also calls lpUpdateOverlay()
                                 }
+                                else lpUpdateOverlay();
                                 startupBankRestore();
                             }
                         });
                     });
+                    startupInProgress = true;
                     startupThread->startThread();
                 }
                 if (cfg.inputPort.isNotEmpty())
@@ -718,8 +732,9 @@ MainComponent::MainComponent()
                     },
                     [this](int stage) {
                         if (stage == 2)
-                            juce::MessageManager::callAsync([this] { startupBankRestore(); });
+                            juce::MessageManager::callAsync([this] { startupInProgress = false; lpUpdateOverlay(); startupBankRestore(); });
                     });
+            startupInProgress = true;
             startupThread->startThread();
         }
         if (forwardingToggle.getToggleState() && midiSender->isOpen() && midiInputCombo.getText().isNotEmpty())
@@ -823,8 +838,9 @@ MainComponent::MainComponent()
                     },
                     [this](int stage) {
                         if (stage == 2)
-                            juce::MessageManager::callAsync([this] { startupBankRestore(); });
+                            juce::MessageManager::callAsync([this] { startupInProgress = false; lpUpdateOverlay(); startupBankRestore(); });
                     });
+            startupInProgress = true;
             startupThread->startThread();
         }
         else midiStatusBox.setText("Open MIDI Out first");
@@ -842,6 +858,7 @@ MainComponent::MainComponent()
         float scale = disp ? (float)disp->scale : 1.0f;
         setSize(juce::roundToInt(PanelLayout::kPanelWidth / scale), 964);
     }
+    lpBrowserOverlay.setVisible(true);  // block interaction until startup completes
     midi::StartupLog::write("=== MainComponent CTOR END ===");
 }
 
@@ -1025,8 +1042,8 @@ void MainComponent::resized()
         const int browserH    = juce::jmax(0, getHeight() - tabs.getTabBarDepth() - browserTop);
         lpBrowserSection.setBounds(0, browserTop, sectionW, browserH);
 
-        // Overlay covers the entire browser section
-        lpBrowserOverlay.setBounds(lpBrowserSection.getLocalBounds());
+        // Overlay covers both the TG strip and the browser section (child of leftPanelTab)
+        lpBrowserOverlay.setBounds(lpPerfSection.getBoundsInParent().getUnion(lpBrowserSection.getBoundsInParent()));
 
         auto area = lpBrowserSection.getLocalBounds().reduced(6);
         const int rowH = 24, gap = 4, btnW = 50;
@@ -1806,7 +1823,8 @@ void MainComponent::lpRestoreBrowserState(int tg0based)
 
 void MainComponent::lpUpdateOverlay()
 {
-    if (selectedTg < 0) { lpBrowserOverlay.setVisible(false); return; }
+    if (startupInProgress)      { lpBrowserOverlay.setVisible(true);  return; }
+    if (selectedTg < 0)         { lpBrowserOverlay.setVisible(false); return; }
     midi::ConfigState cfg;
     midi::Config::load(cfg);
     bool tgOn = midi::tgOnFromString(cfg.tg[selectedTg].tgOnOff);
