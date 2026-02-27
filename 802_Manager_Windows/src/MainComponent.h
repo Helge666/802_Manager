@@ -456,12 +456,14 @@ private:
     // Settings tab (MIDI + actions)
     juce::Component settingsTab;
     // Section headers
-    juce::Label settHdrMidi     { {}, "MIDI Ports" };
-    juce::Label settHdrDevice   { {}, "Device Control" };
-    juce::Label settHdrSysex    { {}, "SysEx Transfer Settings" };
+    juce::Label settHdrMacros   { {}, "MACROS" };
+    juce::Label settHdrDb       { {}, "PATCH DATABASE" };
+    juce::Label settHdrMidi     { {}, "MIDI SETUP" };
+    juce::Label settHdrDevice   { {}, "Device Control" };   // hidden — kept for reference
+    juce::Label settHdrSysex    { {}, "SYSEX SETUP" };
     // MIDI port labels and combos
-    juce::Label settLblInput    { {}, "MIDI Input:" };
-    juce::Label settLblOutput   { {}, "MIDI Output:" };
+    juce::Label settLblInput    { {}, "MIDI from Keyboard or DAW:" };
+    juce::Label settLblOutput   { {}, "MIDI to TX802:" };
     juce::ComboBox midiOutputCombo;
     juce::ComboBox midiInputCombo;
     juce::TextButton refreshMidiButton { "Refresh MIDI" };
@@ -480,8 +482,9 @@ private:
     juce::Slider chunkSlider { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
     juce::Label delayLabel { {}, "Inter-chunk delay (ms):" };
     juce::Slider delaySlider { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
-    juce::Label patchesLabel { {}, "Patches to send:" };
+    juce::Label patchesLabel  { {}, "Patches to send:" };
     juce::ComboBox patchesCombo;
+    juce::Label patchesNote   { {}, "Default 8; don't change." };
     std::unique_ptr<midi::MidiSender> midiSender;
     std::unique_ptr<midi::MidiThru> midiThru;
 

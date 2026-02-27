@@ -493,22 +493,26 @@ MainComponent::MainComponent()
     frontPanelTab.addAndMakeVisible(frontStatus);
     for (int i = 1; i <= 8; ++i)
         fpTgButtons.add(new juce::TextButton("TG" + juce::String(i)));
-    // ── Right Panel macro strip (RESET / PRTCT OFF / PRTCT ON / POS1) ──
+    // ── Right Panel macro strip (RESET / PRTCT OFF / PRTCT ON / POS1 / All Notes Off) ──
+    settHdrMacros.setFont(juce::Font(15.0f, juce::Font::bold));
+    rpMacroStrip.addAndMakeVisible(settHdrMacros);
     rpMacroStrip.addAndMakeVisible(fpReset);
     rpMacroStrip.addAndMakeVisible(fpPrtctOff);
     rpMacroStrip.addAndMakeVisible(fpPrtctOn);
     rpMacroStrip.addAndMakeVisible(fpPos1);
+    rpMacroStrip.addAndMakeVisible(panicBtn);
     frontPanelTab.addAndMakeVisible(rpMacroStrip);
 
     midi::StartupLog::write("CTOR: Settings tab setup");
     // ── Settings section (hosted in Right Panel tab, below the panel image) ──
     rpSettingsSection.addAndMakeVisible(midiOutputCombo);
     rpSettingsSection.addAndMakeVisible(midiInputCombo);
+    settHdrDb.setFont(juce::Font(15.0f, juce::Font::bold));
     settHdrMidi.setFont(juce::Font(15.0f, juce::Font::bold));
-    settHdrDevice.setFont(juce::Font(15.0f, juce::Font::bold));
     settHdrSysex.setFont(juce::Font(15.0f, juce::Font::bold));
+    rpSettingsSection.addAndMakeVisible(settHdrDb);
     rpSettingsSection.addAndMakeVisible(settHdrMidi);
-    rpSettingsSection.addAndMakeVisible(settHdrDevice);
+    // settHdrDevice hidden — "Device Control" section removed from UI
     rpSettingsSection.addAndMakeVisible(settHdrSysex);
     rpSettingsSection.addAndMakeVisible(settLblInput);
     rpSettingsSection.addAndMakeVisible(settLblOutput);
@@ -521,10 +525,11 @@ MainComponent::MainComponent()
     midiStatusBox.setColour(juce::TextEditor::outlineColourId, juce::Colours::grey);
     midiStatusBox.setColour(juce::TextEditor::textColourId, juce::Colours::lightgreen);
     rpSettingsSection.addAndMakeVisible(midiStatusBox);
-    rpSettingsSection.addAndMakeVisible(rebootButton);
-    rpSettingsSection.addAndMakeVisible(prepareBtn);
-    rpSettingsSection.addAndMakeVisible(playTest);
-    rpSettingsSection.addAndMakeVisible(panicBtn);
+    // rebootButton, prepareBtn, playTest hidden — Device Control section removed
+    // rpSettingsSection.addAndMakeVisible(rebootButton);
+    // rpSettingsSection.addAndMakeVisible(prepareBtn);
+    // rpSettingsSection.addAndMakeVisible(playTest);
+    // panicBtn moved to rpMacroStrip
     rpSettingsSection.addAndMakeVisible(devIdLabel);
     rpSettingsSection.addAndMakeVisible(devIdSlider);
     rpSettingsSection.addAndMakeVisible(chunkLabel);
@@ -533,6 +538,9 @@ MainComponent::MainComponent()
     rpSettingsSection.addAndMakeVisible(delaySlider);
     rpSettingsSection.addAndMakeVisible(patchesLabel);
     rpSettingsSection.addAndMakeVisible(patchesCombo);
+    patchesNote.setFont(juce::Font(13.0f, juce::Font::italic));
+    patchesNote.setColour(juce::Label::textColourId, juce::Colours::grey);
+    rpSettingsSection.addAndMakeVisible(patchesNote);
     frontPanelTab.addAndMakeVisible(rpSettingsSection);
 
     midi::StartupLog::write("CTOR: Wiring callbacks");
@@ -1084,12 +1092,14 @@ void MainComponent::resized()
         // Internal macro strip layout
         {
             auto ms  = rpMacroStrip.getLocalBounds().reduced(8);
-            const int btnH = 36, btnW = 110, gap = 8;
-            auto row = ms.withSizeKeepingCentre(ms.getWidth(), btnH);
+            const int labelH = 18, btnH = 28, btnW = 110, gap = 8;
+            settHdrMacros.setBounds(ms.removeFromTop(labelH)); ms.removeFromTop(4);
+            auto row = ms.removeFromTop(btnH);
             fpReset.setBounds(row.removeFromLeft(btnW));    row.removeFromLeft(gap);
             fpPrtctOff.setBounds(row.removeFromLeft(btnW)); row.removeFromLeft(gap);
             fpPrtctOn.setBounds(row.removeFromLeft(btnW));  row.removeFromLeft(gap);
-            fpPos1.setBounds(row.removeFromLeft(btnW));
+            fpPos1.setBounds(row.removeFromLeft(btnW));     row.removeFromLeft(gap);
+            panicBtn.setBounds(row.removeFromLeft(btnW));
         }
         const int settingsTop  = macroTop + macroStripH + 4;
         const int sectionH     = juce::jmax(0, getHeight() - tabs.getTabBarDepth() - settingsTop);
@@ -1099,27 +1109,30 @@ void MainComponent::resized()
         auto st = rpSettingsSection.getLocalBounds().reduced(16);
         const int rowH = 28, labelH = 18, gap = 6, sectionGap = 14, comboW = 340, btnW = 150;
 
-        // DB file selection — above all other settings
+        // PATCH DATABASE
+        settHdrDb.setBounds(st.removeFromTop(rowH)); st.removeFromTop(gap);
         { auto r = st.removeFromTop(rowH); selectDbButton.setBounds(r.removeFromLeft(120)); r.removeFromLeft(8); dbPathLabel.setBounds(r); }
         st.removeFromTop(sectionGap);
 
+        // MIDI SETUP — output (left) | input + refresh (right)
         settHdrMidi.setBounds(st.removeFromTop(rowH)); st.removeFromTop(gap);
-        { auto r = st.removeFromTop(labelH); settLblInput.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); settLblOutput.setBounds(r.removeFromLeft(comboW)); }
-        { auto r = st.removeFromTop(rowH); midiInputCombo.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); midiOutputCombo.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); refreshMidiButton.setBounds(r.removeFromLeft(btnW)); }
+        { auto r = st.removeFromTop(labelH); settLblOutput.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); settLblInput.setBounds(r.removeFromLeft(comboW)); }
+        { auto r = st.removeFromTop(rowH); midiOutputCombo.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); midiInputCombo.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); refreshMidiButton.setBounds(r.removeFromLeft(btnW)); }
         st.removeFromTop(gap);
-        forwardingToggle.setBounds(st.removeFromTop(rowH)); st.removeFromTop(gap);
-        midiStatusBox.setBounds(st.removeFromTop(rowH)); st.removeFromTop(sectionGap);
-
-        settHdrDevice.setBounds(st.removeFromTop(rowH)); st.removeFromTop(gap);
-        { auto r = st.removeFromTop(rowH); prepareBtn.setBounds(r.removeFromLeft(btnW)); r.removeFromLeft(gap); rebootButton.setBounds(r.removeFromLeft(btnW)); r.removeFromLeft(gap); playTest.setBounds(r.removeFromLeft(btnW)); r.removeFromLeft(gap); panicBtn.setBounds(r.removeFromLeft(btnW)); }
+        forwardingToggle.setBounds(st.removeFromTop(rowH));
         st.removeFromTop(sectionGap);
 
+        // SYSEX SETUP
         settHdrSysex.setBounds(st.removeFromTop(rowH)); st.removeFromTop(gap);
         { auto r = st.removeFromTop(rowH); devIdLabel.setBounds(r.removeFromLeft(100)); devIdSlider.setBounds(r.removeFromLeft(140)); r.removeFromLeft(gap*3); chunkLabel.setBounds(r.removeFromLeft(150)); chunkSlider.setBounds(r.removeFromLeft(180)); }
         st.removeFromTop(gap);
         { auto r = st.removeFromTop(rowH); r.removeFromLeft(100+140+gap*3); delayLabel.setBounds(r.removeFromLeft(150)); delaySlider.setBounds(r.removeFromLeft(180)); }
         st.removeFromTop(gap);
-        { auto r = st.removeFromTop(rowH); patchesLabel.setBounds(r.removeFromLeft(100)); patchesCombo.setBounds(r.removeFromLeft(140)); }
+        { auto r = st.removeFromTop(rowH); patchesLabel.setBounds(r.removeFromLeft(100)); patchesCombo.setBounds(r.removeFromLeft(140)); r.removeFromLeft(gap); patchesNote.setBounds(r); }
+        st.removeFromTop(sectionGap);
+
+        // Status message — at the bottom
+        midiStatusBox.setBounds(st.removeFromTop(rowH));
     }
 }
 
