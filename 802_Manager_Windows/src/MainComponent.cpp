@@ -248,7 +248,7 @@ MainComponent::MainComponent()
     // ── Left Panel inline performance section ──
     // All eight TG rows as independent component instances; hidden until first TG click.
     {
-        for (auto* lbl : { &lpHdrTg, /*&lpHdrOnOff, &lpHdrPrst,*/ &lpHdrChan,
+        for (auto* lbl : { /*&lpHdrTg, &lpHdrOnOff, &lpHdrPrst,*/ &lpHdrChan,
                            &lpHdrLow, &lpHdrHigh, &lpHdrDet, &lpHdrShft,
                            &lpHdrVol, &lpHdrOut, &lpHdrDamp })
         {
@@ -268,8 +268,8 @@ MainComponent::MainComponent()
 
             lpTgNum[i].setText(juce::String(tg), juce::dontSendNotification);
             lpTgNum[i].setJustificationType(juce::Justification::centred);
-            lpTgNum[i].setFont(juce::Font(13.0f, juce::Font::bold));
-            lpTgNum[i].setColour(juce::Label::textColourId, juce::Colours::white);
+            lpTgNum[i].setFont(juce::Font(32.0f, juce::Font::bold | juce::Font::italic));
+            lpTgNum[i].setColour(juce::Label::textColourId, juce::Colour(0xFF888888));
             lpPerfSection.addChildComponent(lpTgNum[i]);
 
             // TG On/Off handled by the panel image buttons — not in strip
@@ -308,25 +308,40 @@ MainComponent::MainComponent()
             lpPerfSection.addChildComponent(lpTgNoteHigh[i]);
             lpTgNoteHigh[i].onChange = [this, tg, i]{ sendPerfParam(tg, "NOTEHIGH", lpTgNoteHigh[i].getSelectedId() - 1); };
 
-            // Det / Shft / Vol — rotary knobs
+            // Det / Shft / Vol — linear bar sliders (value drawn inside bar)
+            // Explicit colours for visibility against dark strip background (0xFF1E1E1E).
+            // TextBoxLeft (read-only): for bar-style JUCE positions the textbox over the full
+            // slider bounds with transparent background — value text appears overlaid on the bar.
+            auto applyBarColours = [](juce::Slider& s) {
+                s.setColour(juce::Slider::trackColourId,             juce::Colour(0xFF3A6EA5));
+                s.setColour(juce::Slider::backgroundColourId,        juce::Colour(0xFF2A2A2A));
+                s.setColour(juce::Slider::textBoxTextColourId,       juce::Colours::white);
+                s.setColour(juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
+                // textBox fills full bounds for bar-style → its outline becomes the widget border
+                s.setColour(juce::Slider::textBoxOutlineColourId,    juce::Colour(0xFF606060));
+            };
+
             lpTgDetune[i].setRange(-7, 7, 1);
             lpTgDetune[i].setValue(t.detune.getIntValue(), juce::dontSendNotification);
-            lpTgDetune[i].setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-            lpTgDetune[i].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 30, 14);
+            lpTgDetune[i].setSliderStyle(juce::Slider::LinearBar);
+            lpTgDetune[i].setTextBoxStyle(juce::Slider::TextBoxLeft, true, 0, 0);
+            applyBarColours(lpTgDetune[i]);
             lpPerfSection.addChildComponent(lpTgDetune[i]);
             lpTgDetune[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "DETUNE", (int) lpTgDetune[i].getValue()); };
 
             lpTgShift[i].setRange(-24, 24, 1);
             lpTgShift[i].setValue(t.noteShift.getIntValue(), juce::dontSendNotification);
-            lpTgShift[i].setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-            lpTgShift[i].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 30, 14);
+            lpTgShift[i].setSliderStyle(juce::Slider::LinearBar);
+            lpTgShift[i].setTextBoxStyle(juce::Slider::TextBoxLeft, true, 0, 0);
+            applyBarColours(lpTgShift[i]);
             lpPerfSection.addChildComponent(lpTgShift[i]);
             lpTgShift[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "NOTESHIFT", (int) lpTgShift[i].getValue()); };
 
             lpTgVol[i].setRange(0, 99, 1);
             lpTgVol[i].setValue(t.outVol.getIntValue(), juce::dontSendNotification);
-            lpTgVol[i].setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-            lpTgVol[i].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 30, 14);
+            lpTgVol[i].setSliderStyle(juce::Slider::LinearBar);
+            lpTgVol[i].setTextBoxStyle(juce::Slider::TextBoxLeft, true, 0, 0);
+            applyBarColours(lpTgVol[i]);
             lpPerfSection.addChildComponent(lpTgVol[i]);
             lpTgVol[i].onValueChange = [this, tg, i]{ sendPerfParam(tg, "OUTVOL", (int) lpTgVol[i].getValue()); };
 
@@ -335,6 +350,10 @@ MainComponent::MainComponent()
             lpTgOut[i].setRange(0, 2, 1);
             lpTgOut[i].setSliderStyle(juce::Slider::LinearHorizontal);
             lpTgOut[i].setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
+            // backgroundColourId = full track; trackColourId = filled portion (left of thumb).
+            // Setting both to the same grey makes the groove uniformly visible on both sides.
+            lpTgOut[i].setColour(juce::Slider::backgroundColourId, juce::Colour(0xFF606060));
+            lpTgOut[i].setColour(juce::Slider::trackColourId,      juce::Colour(0xFF606060));
             lpTgOut[i].textFromValueFunction = [](double v) -> juce::String {
                 if (v < 0.5) return "L";
                 if (v < 1.5) return "C";
@@ -352,11 +371,13 @@ MainComponent::MainComponent()
             };
 
             // Damp — latching ToggleButton
-            lpTgDamp[i].setButtonText("Damp");
+            lpTgDamp[i].setButtonText("");
             lpTgDamp[i].setToggleState(midi::fdampFromString(t.fDamp) != 0, juce::dontSendNotification);
             lpPerfSection.addChildComponent(lpTgDamp[i]);
             lpTgDamp[i].onClick = [this, tg, i]{ sendPerfParam(tg, "FDAMP", lpTgDamp[i].getToggleState() ? 1 : 0); };
         }
+        for (auto& sep : lpPerfSep)
+            lpPerfSection.addAndMakeVisible(sep);
         leftPanelTab.addAndMakeVisible(lpBankStrip);
         leftPanelTab.addAndMakeVisible(lpPerfSection);
     }
@@ -926,44 +947,68 @@ void MainComponent::resized()
         // Horizontal bank strip sits immediately below the panel image
         const int bankStripH  = 28;
         lpBankStrip.setBounds(0, panelBottom + 4, sectionW, bankStripH);
-        // Strip height: 8px reduced padding + 22px header + 2px gap + 44px row + 8px padding = 84px
-        const int lpStripH    = 84;
+        // Strip height: 8px reduced padding + 16px header + 0px gap + 44px row + 8px padding = 76px
+        const int lpStripH    = 76;
         lpPerfSection.setBounds(0, panelBottom + 4 + bankStripH + 4, sectionW, lpStripH);
 
         const int colW[] = { 25, 50, 120, 55, 65, 65, 50, 50, 50, 75, 44 };
-        const int rowH = 44, hdrH = 22, gap = 2;
+        const int rowH = 44, hdrH = 16, gap = 2, sepGap = 11; // sepGap = 4px + 2px VRule (line at +1) + 5px → 5px visual on each side
 
         auto area = lpPerfSection.getLocalBounds().reduced(8);
         auto hdrRow = area.removeFromTop(hdrH);
-        lpHdrTg.setBounds(hdrRow.removeFromLeft(colW[0]));       hdrRow.removeFromLeft(gap);
+        // lpHdrTg removed — TG number now displayed on the right in a larger font
         // lpHdrOnOff.setBounds(hdrRow.removeFromLeft(colW[1])); hdrRow.removeFromLeft(gap);  // hidden: panel buttons
         // lpHdrPrst.setBounds(hdrRow.removeFromLeft(colW[2]));  hdrRow.removeFromLeft(gap);  // hidden: LCD line 0
-        lpHdrChan.setBounds(hdrRow.removeFromLeft(colW[3]));      hdrRow.removeFromLeft(gap);
+        lpHdrChan.setBounds(hdrRow.removeFromLeft(colW[3]));      hdrRow.removeFromLeft(sepGap); // | Sep
         lpHdrLow.setBounds(hdrRow.removeFromLeft(colW[4]));       hdrRow.removeFromLeft(gap);
-        lpHdrHigh.setBounds(hdrRow.removeFromLeft(colW[5]));      hdrRow.removeFromLeft(gap);
-        lpHdrDet.setBounds(hdrRow.removeFromLeft(colW[6]));       hdrRow.removeFromLeft(gap);
-        lpHdrShft.setBounds(hdrRow.removeFromLeft(colW[7]));      hdrRow.removeFromLeft(gap);
-        lpHdrVol.setBounds(hdrRow.removeFromLeft(colW[8]));       hdrRow.removeFromLeft(gap);
-        lpHdrOut.setBounds(hdrRow.removeFromLeft(colW[9]));       hdrRow.removeFromLeft(gap);
+        lpHdrHigh.setBounds(hdrRow.removeFromLeft(colW[5]));      hdrRow.removeFromLeft(sepGap); // | Sep
+        lpHdrDet.setBounds(hdrRow.removeFromLeft(colW[6]));       hdrRow.removeFromLeft(sepGap); // | Sep
+        lpHdrShft.setBounds(hdrRow.removeFromLeft(colW[7]));      hdrRow.removeFromLeft(sepGap); // | Sep
+        lpHdrVol.setBounds(hdrRow.removeFromLeft(colW[8]));       hdrRow.removeFromLeft(sepGap); // | Sep
+        lpHdrOut.setBounds(hdrRow.removeFromLeft(colW[9]));       hdrRow.removeFromLeft(sepGap); // | Sep
         lpHdrDamp.setBounds(hdrRow.removeFromLeft(colW[10]));
-        area.removeFromTop(2);
+        // TG number on the right, ~100px past Damp (fine-tune the offset as needed)
+        const int dampRight = 8 + colW[3] + sepGap + colW[4] + gap + colW[5] + sepGap
+                                + colW[6] + sepGap + colW[7] + sepGap + colW[8] + sepGap
+                                + colW[9] + sepGap + colW[10];
+        const int tgNumX = dampRight + 100;
+        const int tgNumW = 60;
 
         // All 8 rows occupy the same slot — only the selected one is visible at a time.
+        const int comboH = 24; // match browser filter row height
         auto rowSlot = area.removeFromTop(rowH);
         for (int i = 0; i < 8; ++i)
         {
             auto row = rowSlot;
-            lpTgNum[i].setBounds(row.removeFromLeft(colW[0]));       row.removeFromLeft(gap);
+            // lpTgNum moved to the right side (large font); no longer at left of row
             // lpTgOnOff[i].setBounds(row.removeFromLeft(colW[1]));  row.removeFromLeft(gap);  // hidden: panel buttons
             // lpTgPreset[i].setBounds(row.removeFromLeft(colW[2])); row.removeFromLeft(gap);  // hidden: LCD line 0
-            lpTgRxCh[i].setBounds(row.removeFromLeft(colW[3]));      row.removeFromLeft(gap);
-            lpTgNoteLow[i].setBounds(row.removeFromLeft(colW[4]));  row.removeFromLeft(gap);
-            lpTgNoteHigh[i].setBounds(row.removeFromLeft(colW[5])); row.removeFromLeft(gap);
-            lpTgDetune[i].setBounds(row.removeFromLeft(colW[6]));   row.removeFromLeft(gap);
-            lpTgShift[i].setBounds(row.removeFromLeft(colW[7]));    row.removeFromLeft(gap);
-            lpTgVol[i].setBounds(row.removeFromLeft(colW[8]));      row.removeFromLeft(gap);
-            lpTgOut[i].setBounds(row.removeFromLeft(colW[9]));      row.removeFromLeft(gap);
-            lpTgDamp[i].setBounds(row.removeFromLeft(colW[10]));
+            lpTgNum[i].setBounds(tgNumX, 0, tgNumW, lpPerfSection.getHeight());
+            lpTgRxCh[i].setBounds(row.removeFromLeft(colW[3]).withSizeKeepingCentre(colW[3], comboH));      row.removeFromLeft(sepGap); // | Sep
+            lpTgNoteLow[i].setBounds(row.removeFromLeft(colW[4]).withSizeKeepingCentre(colW[4], comboH));   row.removeFromLeft(gap);
+            lpTgNoteHigh[i].setBounds(row.removeFromLeft(colW[5]).withSizeKeepingCentre(colW[5], comboH));  row.removeFromLeft(sepGap); // | Sep
+            lpTgDetune[i].setBounds(row.removeFromLeft(colW[6]).withSizeKeepingCentre(colW[6], comboH));    row.removeFromLeft(sepGap); // | Sep
+            lpTgShift[i].setBounds(row.removeFromLeft(colW[7]).withSizeKeepingCentre(colW[7], comboH));     row.removeFromLeft(sepGap); // | Sep
+            lpTgVol[i].setBounds(row.removeFromLeft(colW[8]).withSizeKeepingCentre(colW[8], comboH));       row.removeFromLeft(sepGap); // | Sep
+            lpTgOut[i].setBounds(row.removeFromLeft(colW[9]));                                               row.removeFromLeft(sepGap); // | Sep
+            lpTgDamp[i].setBounds(row.removeFromLeft(colW[10]).withSizeKeepingCentre(comboH, comboH));
+        }
+
+        // Vertical separators spanning the full strip height.
+        // VRule is 2px wide; drawVerticalLine draws at getWidth()/2 = x+1 inside the component.
+        // Placing component at cx+4 gives: 5px visual left of line, 5px visual right of line.
+        // sepGap=11 = 4px (before component) + 2px (component) + 5px (after component).
+        // Groups: Chan | Low+High | Det | Shft | Vol | Out | Damp
+        {
+            const int sh = lpPerfSection.getHeight();
+            int cx = 8;                                    // inset only (# column removed)
+            cx += colW[3]; lpPerfSep[0].setBounds(cx + 4, 0, 2, sh); cx += sepGap; // Chan | Low
+            cx += colW[4] + gap + colW[5];                 // skip Low + gap + High
+            lpPerfSep[1].setBounds(cx + 4, 0, 2, sh); cx += sepGap;                // High | Det
+            cx += colW[6]; lpPerfSep[2].setBounds(cx + 4, 0, 2, sh); cx += sepGap; // Det  | Shft
+            cx += colW[7]; lpPerfSep[3].setBounds(cx + 4, 0, 2, sh); cx += sepGap; // Shft | Vol
+            cx += colW[8]; lpPerfSep[4].setBounds(cx + 4, 0, 2, sh); cx += sepGap; // Vol  | Out
+            cx += colW[9]; lpPerfSep[5].setBounds(cx + 4, 0, 2, sh);               // Out  | Damp
         }
     }
 
@@ -975,7 +1020,7 @@ void MainComponent::resized()
         const int panelBottom = juce::roundToInt(kPanelHeight / scale);
         const int sectionW    = juce::roundToInt(kPanelWidth  / scale);
         const int bankStripH  = 28;
-        const int lpStripH    = 68;
+        const int lpStripH    = 76;
         const int browserTop  = panelBottom + 4 + bankStripH + 4 + lpStripH + 4;
         const int browserH    = juce::jmax(0, getHeight() - tabs.getTabBarDepth() - browserTop);
         lpBrowserSection.setBounds(0, browserTop, sectionW, browserH);
