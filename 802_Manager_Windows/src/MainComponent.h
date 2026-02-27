@@ -242,6 +242,7 @@ private:
     void initBank();
     void randomizeBank();
     void sendBankToDevice();
+    void startupBankRestore();  // spawns BankSendThread to re-send startupBankData (call from message thread)
 
     juce::TabbedComponent tabs { juce::TabbedButtonBar::TabsAtTop };
 
@@ -249,7 +250,8 @@ private:
     juce::TextButton selectDbButton { "Select DB File" };  // hosted in rpSettingsSection
     juce::Label      dbPathLabel;
     BankModel        bankModel;
-    juce::Array<int> bankSlotIds;   // visibleSlots entries, 0 = empty
+    juce::Array<int> bankSlotIds;       // visibleSlots entries, 0 = empty
+    juce::MemoryBlock startupBankData;  // contents of startup_bank.syx (4104 bytes), empty if file absent
     int              visibleSlots { 8 };
     int              pageSize { 100 };  // used by LP browser pagination
     std::unique_ptr<storage::PresetsDb>  presetsDb;
@@ -387,6 +389,7 @@ private:
     void lpSaveBrowserState();
     void lpRestoreBrowserState(int tg0based);
     void lpUpdateOverlay();
+    void selectTg(int i);
 
     // Front Panel tab — maps to TX802-Panel-Right.png
     // See PanelLayout::Right for pixel positions of physical buttons.
