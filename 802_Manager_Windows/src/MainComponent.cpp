@@ -162,6 +162,13 @@ MainComponent::MainComponent()
             bankModel.setSlotName(i, name);
     }
 
+    // Load startup_bank.syx for later device restore (sent after startup sequence completes)
+    {
+        auto bankFile = midi::Config::getConfigFile().getParentDirectory().getChildFile("startup_bank.syx");
+        if (bankFile.existsAsFile())
+            bankFile.loadFileAsData(startupBankData);
+    }
+
     midi::StartupLog::write("CTOR: Opening DB");
     midi::ConfigState cfgInitial; midi::Config::load(cfgInitial);
     juce::File dbFile = cfgInitial.dbPath.isNotEmpty() ? juce::File(cfgInitial.dbPath)
@@ -220,25 +227,17 @@ MainComponent::MainComponent()
         leftPanelTab.addAndMakeVisible(btn);
         btn->onClick = [this, i]
         {
-            lpSaveBrowserState();                   // save outgoing TG's filter/page state
+            selectTg(i);
 
-            // Show only this TG's row, hide the rest.
-            for (int j = 0; j < 8; ++j)
-                setLpRowVisible(j, j == i);
-            selectedTg = i;
-            setLcdLine(0, buildVoiceSelectLine());  // update LCD line 0 for selected TG
-
-            lpRestoreBrowserState(i);               // restore incoming TG's filter/page state
-            lpRefreshPresets();                     // reload list for this TG's filter
-            lpUpdateOverlay();                      // initial overlay — correct for no-MIDI case
+            midi::ConfigState cfg; midi::Config::load(cfg);
+            cfg.lastSelectedTg = i;
+            midi::Config::save(cfg);
 
             if (! midiSender || ! midiSender->isOpen()) return;
-            midi::ConfigState cfg;
-            midi::Config::load(cfg);
             const bool currentlyOn = midi::tgOnFromString(cfg.tg[i].tgOnOff);
             sendPerfParam(i + 1, "TG", currentlyOn ? 0 : 1);
             lpTgOnOff[i].setSelectedId(currentlyOn ? 1 : 2, juce::dontSendNotification);
-            lpUpdateOverlay();                      // re-evaluate after toggle (MIDI case)
+            lpUpdateOverlay();
         };
     }
     // LCD text overlay on the display area (non-interactive, drawn on top of the green LCD region)
@@ -642,7 +641,14 @@ MainComponent::MainComponent()
                         juce::MessageManager::callAsync([this, stage] {
                             if      (stage == 0) { setLcdLine(0, kLcdReset0);   setLcdLine(1, kLcdReset1);   }
                             else if (stage == 1) { setLcdLine(0, kLcdPrepare0); setLcdLine(1, kLcdPrepare1); }
-                            else                 { updateLcdFromConfig(); }
+                            else {
+                                updateLcdFromConfig();
+                                if (selectedTg < 0) {
+                                    midi::ConfigState cfg2; midi::Config::load(cfg2);
+                                    selectTg(cfg2.lastSelectedTg);
+                                }
+                                startupBankRestore();
+                            }
                         });
                     });
                     startupThread->startThread();
@@ -667,6 +673,14 @@ MainComponent::MainComponent()
         }
     }
 
+    // Restore last-selected TG unconditionally (covers no-MIDI case too).
+    // Captured by value so there's no dangling reference after constructor returns.
+    {
+        midi::ConfigState cfg; midi::Config::load(cfg);
+        const int tgToRestore = cfg.lastSelectedTg;
+        juce::MessageManager::callAsync([this, tgToRestore] { selectTg(tgToRestore); });
+    }
+
     midiOutputCombo.onChange = [this]
     {
         const auto name = midiOutputCombo.getText();
@@ -680,6 +694,10 @@ MainComponent::MainComponent()
             startupThread = std::make_unique<StartupThread>(*midiSender, cfg.deviceId,
                     [this](int tg, bool on) {
                         juce::MessageManager::callAsync([this, tg, on] { setTgLed(tg, on); });
+                    },
+                    [this](int stage) {
+                        if (stage == 2)
+                            juce::MessageManager::callAsync([this] { startupBankRestore(); });
                     });
             startupThread->startThread();
         }
@@ -781,6 +799,10 @@ MainComponent::MainComponent()
             startupThread = std::make_unique<StartupThread>(*midiSender, cfg.deviceId,
                     [this](int tg, bool on) {
                         juce::MessageManager::callAsync([this, tg, on] { setTgLed(tg, on); });
+                    },
+                    [this](int stage) {
+                        if (stage == 2)
+                            juce::MessageManager::callAsync([this] { startupBankRestore(); });
                     });
             startupThread->startThread();
         }
@@ -1190,7 +1212,6 @@ void MainComponent::setBankSlotFromPreset(int slotIndex, int presetId, const juc
     bankModel.setSlotName(slotIndex, name);
     lpBankList.updateContent();
     lpBankList.repaintRow(slotIndex);
-    lpBankStrip.repaint();
 }
 
 void MainComponent::moveBankSlot(int fromIndex, int toIndex)
@@ -1255,6 +1276,34 @@ void MainComponent::randomizeBank()
     lpBankStrip.repaint();
 }
 
+void MainComponent::startupBankRestore()
+{
+    if (startupBankData.getSize() != 4104) return;
+    if (! midiSender || ! midiSender->isOpen()) return;
+
+    midi::ConfigState cfg; midi::Config::load(cfg);
+
+    if (bankSendThread)
+    {
+        bankSendThread->stopThread(5000);
+        bankSendThread.reset();
+    }
+
+    midiStatusBox.setText("Restoring bank...");
+    bankSendThread = std::make_unique<BankSendThread>(
+        *midiSender, (juce::uint8) cfg.deviceId,
+        startupBankData, false, 32,
+        cfg.sysexChunkBytes, cfg.sysexInterChunkMs,
+        [this](bool ok, int)
+        {
+            juce::MessageManager::callAsync([this, ok]
+            {
+                midiStatusBox.setText(ok ? "Bank restored" : "Bank restore failed");
+            });
+        });
+    bankSendThread->startThread();
+}
+
 void MainComponent::sendBankToDevice()
 {
     if (! midiSender || ! midiSender->isOpen()) { midiStatusBox.setText("Open a MIDI output first"); return; }
@@ -1268,7 +1317,10 @@ void MainComponent::sendBankToDevice()
 
     juce::MemoryBlock packed4096(32 * 128);
     auto* out = static_cast<juce::uint8*>(packed4096.getData());
-    const auto initV128 = getInitVoice128();
+    const bool hasStartupBank = (startupBankData.getSize() == 4104);
+    const auto* startupVoices = hasStartupBank
+        ? static_cast<const juce::uint8*>(startupBankData.getData()) + 6  // skip 6-byte header
+        : nullptr;
 
     for (int i = 0; i < 32; ++i)
     {
@@ -1276,14 +1328,22 @@ void MainComponent::sendBankToDevice()
         const int id = (i < bankSlotIds.size()) ? bankSlotIds[i] : 0;
         if (id > 0)
         {
+            // Slot has a newly selected preset — fetch from database
             juce::MemoryBlock syx; juce::String err; juce::String msg; juce::MemoryBlock v155;
             if (! presetsDb->getSysexById(id, syx, err) || ! core::Dx7Utils::verifySingleVoiceSysex(syx, msg, v155))
             { midiStatusBox.setText("Invalid slot " + juce::String(i+1) + ": " + (err.isNotEmpty()?err:msg)); return; }
             v128 = core::Dx7Utils::packSingleToBankVoice(v155);
         }
+        else if (startupVoices != nullptr)
+        {
+            // Slot unchanged — preserve the existing voice from the last sent bank
+            v128.setSize(128);
+            std::memcpy(v128.getData(), startupVoices + i * 128, 128);
+        }
         else
         {
-            v128 = initV128;
+            // No previous bank exists (first run) — use INIT VOICE
+            v128 = getInitVoice128();
         }
         std::memcpy(out + i * 128, v128.getData(), 128);
     }
@@ -1316,7 +1376,12 @@ void MainComponent::sendBankToDevice()
             cfgS.presetBankNames.add(bankModel.getSlotName(i));
         midi::Config::save(cfgS);
         refreshPerfPresetDropdowns();
+        lpBankStrip.repaint();
+        setLcdLine(0, buildVoiceSelectLine());
     }
+
+    // Keep a copy of the new bank so startupBankRestore() can re-send it later
+    startupBankData = bank;
 
     // Stop any in-progress send before starting a new one
     if (bankSendThread)
@@ -1600,6 +1665,18 @@ void MainComponent::updateLcdFromConfig()
 {
     setLcdLine(0, buildVoiceSelectLine());
     setLcdLine(1, buildLinkLine());
+}
+
+void MainComponent::selectTg(int i)
+{
+    lpSaveBrowserState();
+    for (int j = 0; j < 8; ++j)
+        setLpRowVisible(j, j == i);
+    selectedTg = i;
+    setLcdLine(0, buildVoiceSelectLine());
+    lpRestoreBrowserState(i);
+    lpRefreshPresets();
+    lpUpdateOverlay();
 }
 
 void MainComponent::setLpRowVisible(int tg0based, bool visible)

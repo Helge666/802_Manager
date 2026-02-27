@@ -36,13 +36,14 @@ struct ConfigState {
     int sysexChunkBytes { 256 };    // pacing chunk size
     int sysexInterChunkMs { 20 };   // pacing delay between chunks
     int patchesToSend { 8 };        // how many voices to send (1,8,16,32)
+    int lastSelectedTg { 0 };       // 0-based; default TG1
 
     // Performance state for TG1-TG8  (Python-compatible format)
     core::TgState tg[8];            // tg[0] = TG1 .. tg[7] = TG8
     bool hasPerformanceParams { false };
 
-    // Names of the 32 patches in the most recently sent bank
-    juce::StringArray presetBankNames; // 32 entries; empty = not yet set
+    // Names of the patches in the most recently sent bank (position = bank slot index)
+    juce::StringArray presetBankNames; // up to 32 entries; empty string = not set
 };
 
 // ─── Config file I/O ─────────────────────────────────────────────────────
@@ -77,6 +78,8 @@ public:
             state.sysexInterChunkMs = (int) obj->getProperty("sysex_interchunk_ms");
         if (obj->hasProperty("patches_to_send"))
             state.patchesToSend = (int) obj->getProperty("patches_to_send");
+        if (obj->hasProperty("last_selected_tg"))
+            state.lastSelectedTg = juce::jlimit(0, 7, (int) obj->getProperty("last_selected_tg"));
 
         // Load performance params – Python-compatible format:
         // "performance_params": { "1": { "TG": "Off", "PRESET": "I01", ... }, ... }
@@ -111,7 +114,7 @@ public:
             }
         }
 
-        // Load preset bank names (32 entries)
+        // Load preset bank names (up to 32 entries)
         if (obj->hasProperty("preset_bank"))
         {
             auto* arr = obj->getProperty("preset_bank").getArray();
@@ -122,6 +125,7 @@ public:
                     state.presetBankNames.add((*arr)[j].toString());
             }
         }
+
         return true;
     }
 
@@ -136,6 +140,7 @@ public:
         obj->setProperty("sysex_chunk_bytes", state.sysexChunkBytes);
         obj->setProperty("sysex_interchunk_ms", state.sysexInterChunkMs);
         obj->setProperty("patches_to_send", state.patchesToSend);
+        obj->setProperty("last_selected_tg", state.lastSelectedTg);
 
         // Save performance params – Python-compatible format
         if (state.hasPerformanceParams)
@@ -160,7 +165,7 @@ public:
             obj->setProperty("performance_params", juce::var(perfObj.get()));
         }
 
-        // Save preset bank names
+        // Save preset bank names + IDs
         if (state.presetBankNames.size() > 0)
         {
             juce::Array<juce::var> names;
