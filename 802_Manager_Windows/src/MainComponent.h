@@ -175,6 +175,7 @@ private:
     public:
         bool momentary { true };
         bool active    { false };
+        bool hovered   { false };
         std::function<void()> onClick;
 
         void setActive(bool a) { active = a; repaint(); }
@@ -183,7 +184,11 @@ private:
         {
             if (active)
                 g.fillAll(juce::Colours::black.withAlpha(0.38f));
+            else if (hovered)
+                g.fillAll(juce::Colours::white.withAlpha(0.15f));
         }
+        void mouseEnter(const juce::MouseEvent&) override { hovered = true;  repaint(); }
+        void mouseExit (const juce::MouseEvent&) override { hovered = false; repaint(); }
         void mouseDown(const juce::MouseEvent&) override
         {
             active = true; repaint();
