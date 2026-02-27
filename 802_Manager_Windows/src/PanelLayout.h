@@ -24,14 +24,14 @@ namespace PanelLayout
         // TG1–TG8 buttons (index 0 = TG1)
         constexpr Rect tgButton[8] =
         {
-            { 336, 244, 68, 68 }, // TG1
-            { 419, 244, 68, 68 }, // TG2
-            { 498, 244, 68, 68 }, // TG3
-            { 578, 244, 68, 68 }, // TG4
-            { 660, 244, 68, 68 }, // TG5
-            { 740, 244, 68, 68 }, // TG6
-            { 820, 244, 68, 68 }, // TG7
-            { 903, 244, 68, 68 }, // TG8
+            { 336, 244, 68, 58 }, // TG1
+            { 419, 244, 68, 58 }, // TG2
+            { 498, 244, 68, 58 }, // TG3
+            { 578, 244, 68, 58 }, // TG4
+            { 660, 244, 68, 58 }, // TG5
+            { 740, 244, 68, 58 }, // TG6
+            { 820, 244, 68, 58 }, // TG7
+            { 903, 244, 68, 58 }, // TG8
         };
 
         // LED-On.png position per TG button (index 0 = TG1), size = kLedWidth x kLedHeight
@@ -53,16 +53,16 @@ namespace PanelLayout
     namespace Right
     {
         // Top row — mode select
-        constexpr Rect performSelect { 126,  35, 68, 68 };
-        constexpr Rect voiceSelect   { 207,  35, 68, 68 };
-        constexpr Rect systemSetup   { 288,  35, 68, 68 };
-        constexpr Rect utility       { 371,  35, 68, 68 };
+        constexpr Rect performSelect { 126,  35, 68, 63 };
+        constexpr Rect voiceSelect   { 207,  35, 68, 63 };
+        constexpr Rect systemSetup   { 288,  35, 68, 63 };
+        constexpr Rect utility       { 371,  35, 68, 63 };
 
         // Second row — edit
-        constexpr Rect performEdit   { 126, 107, 68, 68 };
-        constexpr Rect voiceEditI    { 207, 107, 68, 68 };
-        constexpr Rect voiceEditII   { 288, 107, 68, 68 };
-        constexpr Rect storeCompare  { 371, 107, 68, 68 };
+        constexpr Rect performEdit   { 126, 107, 68, 63 };
+        constexpr Rect voiceEditI    { 207, 107, 68, 63 };
+        constexpr Rect voiceEditII   { 288, 107, 68, 63 };
+        constexpr Rect storeCompare  { 371, 107, 68, 63 };
 
         // Cartridge slot
         constexpr Rect cartridgeArea { 135, 237, 290, 68 };
