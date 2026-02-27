@@ -374,6 +374,7 @@ private:
     juce::ToggleButton lpAutoSendToggle;
     juce::TextButton   lpAutoSendButton      { "Send"  };
     VRule              lpSep1, lpSep2;   // separators: after Rating, after nav symbols
+    VRule              lpPerfSep[6];     // perf strip separators: Chan|Low, High|Det, Det|Shft, Shft|Vol, Vol|Out, Out|Damp
 
     // Bank panel (lpBankList shares bankModel with the Preset Browser tab's bankList)
     juce::ListBox    lpBankList            { "LP Bank", nullptr };
