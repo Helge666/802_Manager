@@ -57,5 +57,5 @@
       to notes and CC only (see MidiThru.h)
 - [x] Bug 5 — changing "MIDI to TX802" (output port) incorrectly triggers the device
       startup/init sequence; it should only reopen the MIDI output port.
-- [ ] Bug 6 — changing "MIDI from Keyboard or DAW" (input port) does not activate the
+- [x] Bug 6 — changing "MIDI from Keyboard or DAW" (input port) does not activate the
       newly selected input; the previously selected port keeps receiving.
