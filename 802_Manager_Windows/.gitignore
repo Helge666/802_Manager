@@ -36,5 +36,8 @@ CTestTestfile.cmake
 *.log
 *.tmp
 
+# Auto-generated version header (source of truth is build_number.txt + scripts/bump_build.sh)
+src/Version.h
+
 # Recovery scripts (not part of the project)
 recover*.py

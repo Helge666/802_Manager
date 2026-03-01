@@ -10,6 +10,8 @@ struct PresetRow {
     juce::String category;
     juce::String comments;
     int rating { 0 };
+    juce::String bankfile;
+    juce::String origin;
 };
 
 class PresetsDb {
@@ -31,6 +33,9 @@ public:
 
     // Update rating for a preset (0 => unrated/NULL)
     bool updateRating(int id, int rating, juce::String& errorMessage);
+
+    // Update comments for a preset
+    bool updateComments(int id, const juce::String& text, juce::String& errorMessage);
 
 private:
     juce::File dbFile;

@@ -1,16 +1,17 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "MainComponent.h"
+#include "Version.h"
 
 class MainApplication  : public juce::JUCEApplication
 {
 public:
-    const juce::String getApplicationName() override       { return "802 Manager JUCE"; }
-    const juce::String getApplicationVersion() override    { return "0.1.0"; }
+    const juce::String getApplicationName() override       { return "802 Manager"; }
+    const juce::String getApplicationVersion() override    { return APP_VERSION_STRING; }
     bool moreThanOneInstanceAllowed() override             { return true; }
 
     void initialise (const juce::String&) override
     {
-        mainWindow.reset (new MainWindow (getApplicationName()));
+        mainWindow.reset (new MainWindow (getApplicationName() + "  " + APP_VERSION_FULL));
     }
 
     void shutdown() override
