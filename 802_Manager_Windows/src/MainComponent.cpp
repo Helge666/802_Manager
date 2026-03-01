@@ -4,9 +4,24 @@
 #include "midi/Tx802HighLevel.h"
 #include "midi/Config.h"
 #include "PanelLayout.h"
+#include "Version.h"
 #include <BinaryData.h>
 
 using core::Dx7Utils;
+
+// ── Configurable browser column definitions ──────────────────────────────────
+const MainComponent::ColDef MainComponent::kAllCols[] = {
+    { "id",         "ID",        50  },
+    { "presetname", "Patch",     120 },
+    { "category",   "Category",  80  },
+    { "bankfile",   "Bank File", 120 },
+    { "origin",     "Origin",    80  },
+    { "comments",   "Comments",  100 },
+    { "rating",     "Rating",    50  },
+};
+const char* MainComponent::kOptionalColIds[MainComponent::kNumOptionalCols] =
+    { "category", "bankfile", "origin", "comments", "rating" };
+// kOptionalColIds index: 0=category, 1=bankfile, 2=origin, 3=comments, 4=rating
 
 // LCD text constants — shown during and after device reset
 static const juce::String kLcdReset0   = "*****        YAMAHA  TX802         *****";
@@ -60,6 +75,11 @@ MainComponent::~MainComponent()
 
 void MainComponent::StartupThread::run()
 {
+    // Stamp version + separator — appended, never cleared, so the log accumulates across runs
+    midi::StartupLog::write("");
+    midi::StartupLog::write("802 Manager " APP_VERSION_FULL);
+    midi::StartupLog::write(juce::String::repeatedString("=", 50));
+
     if (lcdCallback) lcdCallback(0); // RESET sent — show startup text
     midi::Tx802HighLevel::sendStartupSequence(sender, (juce::uint8) deviceId,
         [this] {
@@ -137,13 +157,15 @@ void MainComponent::BankSendThread::run()
 
 MainComponent::MainComponent()
 {
+    midi::StartupLog::write("802 Manager " APP_VERSION_FULL);
+    midi::StartupLog::write(juce::String::repeatedString("=", 50));
     midi::StartupLog::write("=== MainComponent CTOR BEGIN ===");
     addAndMakeVisible(tabs);
 
     midi::StartupLog::write("CTOR: Bank + DB setup");
     // ── Bank model + preset database ──
-    rpSettingsSection.addAndMakeVisible(selectDbButton);
-    rpSettingsSection.addAndMakeVisible(dbPathLabel);
+    rpDbSection.addAndMakeVisible(selectDbButton);
+    rpDbSection.addAndMakeVisible(dbPathLabel);
 
     // Read patchesToSend and preset bank names from config
     midi::ConfigState cfgSlots; midi::Config::load(cfgSlots);
@@ -505,42 +527,173 @@ MainComponent::MainComponent()
 
     midi::StartupLog::write("CTOR: Settings tab setup");
     // ── Settings section (hosted in Right Panel tab, below the panel image) ──
-    rpSettingsSection.addAndMakeVisible(midiOutputCombo);
-    rpSettingsSection.addAndMakeVisible(midiInputCombo);
+    rpSettingsSection.addAndMakeVisible(rpDbSection);
+    rpSettingsSection.addAndMakeVisible(rpBrowserColsSection);
+    rpSettingsSection.addAndMakeVisible(rpMidiSection);
+    rpSettingsSection.addAndMakeVisible(rpSysexSection);
+    rpSettingsSection.addAndMakeVisible(rpMiscSection);
+
+    // PATCH DATABASE sub-section
     settHdrDb.setFont(juce::Font(15.0f, juce::Font::bold));
+    rpDbSection.addAndMakeVisible(settHdrDb);
+    rpDbSection.addAndMakeVisible(selectDbButton);
+    rpDbSection.addAndMakeVisible(dbPathLabel);
+
+    // MIDI SETUP sub-section
     settHdrMidi.setFont(juce::Font(15.0f, juce::Font::bold));
-    settHdrSysex.setFont(juce::Font(15.0f, juce::Font::bold));
-    rpSettingsSection.addAndMakeVisible(settHdrDb);
-    rpSettingsSection.addAndMakeVisible(settHdrMidi);
-    // settHdrDevice hidden — "Device Control" section removed from UI
-    rpSettingsSection.addAndMakeVisible(settHdrSysex);
-    rpSettingsSection.addAndMakeVisible(settLblInput);
-    rpSettingsSection.addAndMakeVisible(settLblOutput);
-    rpSettingsSection.addAndMakeVisible(refreshMidiButton);
-    rpSettingsSection.addAndMakeVisible(forwardingToggle);
+    rpMidiSection.addAndMakeVisible(settHdrMidi);
+    rpMidiSection.addAndMakeVisible(midiOutputCombo);
+    rpMidiSection.addAndMakeVisible(midiInputCombo);
+    rpMidiSection.addAndMakeVisible(settLblInput);
+    rpMidiSection.addAndMakeVisible(settLblOutput);
+    rpMidiSection.addAndMakeVisible(refreshMidiButton);
+    rpMidiSection.addAndMakeVisible(forwardingToggle);
     midiStatusBox.setMultiLine(false);
     midiStatusBox.setReadOnly(true);
     midiStatusBox.setCaretVisible(false);
     midiStatusBox.setColour(juce::TextEditor::backgroundColourId, juce::Colours::black.withAlpha(0.3f));
     midiStatusBox.setColour(juce::TextEditor::outlineColourId, juce::Colours::grey);
     midiStatusBox.setColour(juce::TextEditor::textColourId, juce::Colours::lightgreen);
-    rpSettingsSection.addAndMakeVisible(midiStatusBox);
-    // rebootButton, prepareBtn, playTest hidden — Device Control section removed
-    // rpSettingsSection.addAndMakeVisible(rebootButton);
-    // rpSettingsSection.addAndMakeVisible(prepareBtn);
-    // rpSettingsSection.addAndMakeVisible(playTest);
-    // panicBtn moved to rpMacroStrip
-    rpSettingsSection.addAndMakeVisible(devIdLabel);
-    rpSettingsSection.addAndMakeVisible(devIdSlider);
-    rpSettingsSection.addAndMakeVisible(chunkLabel);
-    rpSettingsSection.addAndMakeVisible(chunkSlider);
-    rpSettingsSection.addAndMakeVisible(delayLabel);
-    rpSettingsSection.addAndMakeVisible(delaySlider);
-    rpSettingsSection.addAndMakeVisible(patchesLabel);
-    rpSettingsSection.addAndMakeVisible(patchesCombo);
+
+    // MISCELLANEOUS sub-section
+    {
+        settHdrMisc.setFont(juce::Font(15.0f, juce::Font::bold));
+        rpMiscSection.addAndMakeVisible(settHdrMisc);
+        rpMiscSection.addAndMakeVisible(loggingToggle);
+        rpMiscSection.addAndMakeVisible(midiStatusBox);
+
+        midi::ConfigState cfg; midi::Config::load(cfg);
+        loggingToggle.setToggleState(cfg.loggingEnabled, juce::dontSendNotification);
+        midi::StartupLog::setEnabled(cfg.loggingEnabled);
+
+        loggingToggle.onClick = [this]
+        {
+            const bool enabled = loggingToggle.getToggleState();
+            midi::StartupLog::setEnabled(enabled);
+            if (enabled)
+                midi::StartupLog::write("=== Logging enabled by user ===");
+            midi::ConfigState c; midi::Config::load(c);
+            c.loggingEnabled = enabled;
+            midi::Config::save(c);
+        };
+    }
+
+    // SYSEX SETUP sub-section
+    settHdrSysex.setFont(juce::Font(15.0f, juce::Font::bold));
+    rpSysexSection.addAndMakeVisible(settHdrSysex);
+    rpSysexSection.addAndMakeVisible(devIdLabel);
+    rpSysexSection.addAndMakeVisible(devIdCombo);
+    rpSysexSection.addAndMakeVisible(chunkLabel);
+    rpSysexSection.addAndMakeVisible(chunkCombo);
+    rpSysexSection.addAndMakeVisible(delayLabel);
+    rpSysexSection.addAndMakeVisible(delayCombo);
+    rpSysexSection.addAndMakeVisible(patchesLabel);
+    rpSysexSection.addAndMakeVisible(patchesCombo);
     patchesNote.setFont(juce::Font(13.0f, juce::Font::italic));
     patchesNote.setColour(juce::Label::textColourId, juce::Colours::grey);
-    rpSettingsSection.addAndMakeVisible(patchesNote);
+    rpSysexSection.addAndMakeVisible(patchesNote);
+
+    // ── BROWSER COLUMNS section ──
+    {
+        midi::ConfigState cfg; midi::Config::load(cfg);
+
+        settHdrBrowserCols.setFont(juce::Font(15.0f, juce::Font::bold));
+        rpBrowserColsSection.addAndMakeVisible(settHdrBrowserCols);
+
+        // Helper: read-only input field style (dark box, dimmed text, not editable)
+        auto styleReadOnly = [](juce::Label& l, const juce::String& text) {
+            l.setText(text, juce::dontSendNotification);
+            l.setColour(juce::Label::backgroundColourId, juce::Colour(0xFF1E1E1E));
+            l.setColour(juce::Label::outlineColourId,    juce::Colour(0xFF3A3A3A));
+            l.setColour(juce::Label::textColourId,       juce::Colour(0xFF666666));
+            l.setJustificationType(juce::Justification::centred);
+        };
+        // Helper: editable input field style
+        auto styleEditable = [](juce::Label& l, const juce::String& text) {
+            l.setText(text, juce::dontSendNotification);
+            l.setEditable(true, true, true);
+            l.setColour(juce::Label::backgroundColourId, juce::Colour(0xFF2A2A2A));
+            l.setColour(juce::Label::outlineColourId,    juce::Colour(0xFF555555));
+            l.setColour(juce::Label::textColourId,       juce::Colours::white);
+            l.setJustificationType(juce::Justification::centred);
+        };
+
+        // Fixed rows: ID (0), Patch (1) — position and width are read-only
+        const int fixedWidths[] = { cfg.bcId.width, cfg.bcPreset.width };
+        static const char* fixedLabels[] = { "ID", "Patch" };
+        for (int i = 0; i < 2; ++i)
+        {
+            styleReadOnly(colFixedPosEd[i], juce::String(i + 1));
+            rpBrowserColsSection.addAndMakeVisible(colFixedPosEd[i]);
+
+            styleReadOnly(colFixedWidthEd[i], juce::String(fixedWidths[i]));
+            rpBrowserColsSection.addAndMakeVisible(colFixedWidthEd[i]);
+
+            colFixedLabel[i].setText(fixedLabels[i], juce::dontSendNotification);
+            colFixedLabel[i].setColour(juce::Label::textColourId, juce::Colour(0xFF888888));
+            rpBrowserColsSection.addAndMakeVisible(colFixedLabel[i]);
+        }
+
+        // Build colOrder from config order values (sort optional cols by their .order field)
+        {
+            std::array<std::pair<int,int>, kNumOptionalCols> tmp;
+            for (int k = 0; k < kNumOptionalCols; ++k)
+                tmp[k] = { cfg.bcByOptIdx(k).order, k };
+            std::sort(tmp.begin(), tmp.end());
+            colOrder.clear();
+            for (auto& p : tmp) colOrder.add(p.second);
+        }
+
+        // Optional column setup
+        static const char* optNames[] = { "Category", "Bank File", "Origin", "Comments", "Rating" };
+        auto optWidthFor = [&](int k) -> int {
+            return cfg.bcByOptIdx(k).width;
+        };
+
+        for (int k = 0; k < kNumOptionalCols; ++k)
+        {
+            // Checkbox (expose/hide)
+            colCheck[k].setToggleState(cfg.bcByOptIdx(k).show, juce::dontSendNotification);
+            rpBrowserColsSection.addAndMakeVisible(colCheck[k]);
+            colCheck[k].onClick = [this] { colSettingsChanged(); };
+
+            // Position ComboBox — values 3..7 = browser column position
+            for (int pos = 3; pos < 3 + kNumOptionalCols; ++pos)
+                colPosCombo[k].addItem(juce::String(pos), pos);
+            colPosCombo[k].setSelectedId(colOrder.indexOf(k) + 3, juce::dontSendNotification);
+            rpBrowserColsSection.addAndMakeVisible(colPosCombo[k]);
+            colPosCombo[k].onChange = [this, k]
+            {
+                int newIdx = colPosCombo[k].getSelectedId() - 3; // 0..4
+                int curIdx = colOrder.indexOf(k);
+                if (curIdx >= 0 && curIdx != newIdx)
+                {
+                    int other = colOrder[newIdx];
+                    colOrder.set(newIdx, k);
+                    colOrder.set(curIdx, other);
+                    colPosCombo[other].setSelectedId(curIdx + 3, juce::dontSendNotification);
+                    colSettingsChanged();
+                }
+            };
+
+            // Width input
+            styleEditable(colWidthEd[k], juce::String(optWidthFor(k)));
+            rpBrowserColsSection.addAndMakeVisible(colWidthEd[k]);
+            colWidthEd[k].onEditorHide = [this, k]
+            {
+                const int val = juce::jlimit(20, 400, colWidthEd[k].getText().getIntValue());
+                midi::ConfigState c; midi::Config::load(c);
+                c.bcByOptIdx(k).width = val;
+                midi::Config::save(c);
+                lpRefreshBrowserColumns();
+            };
+
+            // Name label
+            colNameLabel[k].setText(optNames[k], juce::dontSendNotification);
+            rpBrowserColsSection.addAndMakeVisible(colNameLabel[k]);
+        }
+    }
+
     frontPanelTab.addAndMakeVisible(rpSettingsSection);
 
     midi::StartupLog::write("CTOR: Wiring callbacks");
@@ -787,13 +940,19 @@ MainComponent::MainComponent()
 
     // Load pacing and device ID config
     {
+        for (int i = 1; i <= 16; ++i) devIdCombo.addItem(juce::String(i), i);
+        for (int v : { 64, 128, 256, 512, 1024, 2048, 4096 }) chunkCombo.addItem(juce::String(v), v);
+        for (int v : { 10, 20, 50, 100, 150, 200, 250, 500 }) delayCombo.addItem(juce::String(v), v);
+
         midi::ConfigState cfg; midi::Config::load(cfg);
-        devIdSlider.setRange(1, 16, 1);
-        devIdSlider.setValue(cfg.deviceId, juce::dontSendNotification);
-        chunkSlider.setRange(32, 4096, 1);
-        chunkSlider.setValue(cfg.sysexChunkBytes, juce::dontSendNotification);
-        delaySlider.setRange(1, 500, 1);
-        delaySlider.setValue(cfg.sysexInterChunkMs, juce::dontSendNotification);
+        devIdCombo.setSelectedId(cfg.deviceId,         juce::dontSendNotification);
+        chunkCombo.setSelectedId(cfg.sysexChunkBytes,  juce::dontSendNotification);
+        delayCombo.setSelectedId(cfg.sysexInterChunkMs, juce::dontSendNotification);
+
+        // Fall back to defaults if stored value isn't in the list
+        if (devIdCombo.getSelectedId()  == 0) devIdCombo.setSelectedId(1,   juce::dontSendNotification);
+        if (chunkCombo.getSelectedId()  == 0) chunkCombo.setSelectedId(256, juce::dontSendNotification);
+        if (delayCombo.getSelectedId()  == 0) delayCombo.setSelectedId(20,  juce::dontSendNotification);
     }
     {
         patchesCombo.addItem("1",  1);
@@ -823,14 +982,14 @@ MainComponent::MainComponent()
             lpBankStrip.repaint();
         }
     };
-    devIdSlider.onValueChange = [this]{
-        midi::ConfigState cfg; midi::Config::load(cfg); cfg.deviceId = (int) devIdSlider.getValue(); midi::Config::save(cfg);
+    devIdCombo.onChange = [this]{
+        midi::ConfigState cfg; midi::Config::load(cfg); cfg.deviceId = devIdCombo.getSelectedId(); midi::Config::save(cfg);
     };
-    chunkSlider.onValueChange = [this]{
-        midi::ConfigState cfg; midi::Config::load(cfg); cfg.sysexChunkBytes = (int) chunkSlider.getValue(); midi::Config::save(cfg);
+    chunkCombo.onChange = [this]{
+        midi::ConfigState cfg; midi::Config::load(cfg); cfg.sysexChunkBytes = chunkCombo.getSelectedId(); midi::Config::save(cfg);
     };
-    delaySlider.onValueChange = [this]{
-        midi::ConfigState cfg; midi::Config::load(cfg); cfg.sysexInterChunkMs = (int) delaySlider.getValue(); midi::Config::save(cfg);
+    delayCombo.onChange = [this]{
+        midi::ConfigState cfg; midi::Config::load(cfg); cfg.sysexInterChunkMs = delayCombo.getSelectedId(); midi::Config::save(cfg);
     };
 
     prepareBtn.onClick = [this]
@@ -866,6 +1025,7 @@ MainComponent::MainComponent()
         float scale = disp ? (float)disp->scale : 1.0f;
         setSize(juce::roundToInt(PanelLayout::kPanelWidth / scale), 964);
     }
+    lpRefreshBrowserColumns();
     lpBrowserOverlay.setVisible(true);  // block interaction until startup completes
     midi::StartupLog::write("=== MainComponent CTOR END ===");
 }
@@ -1106,33 +1266,71 @@ void MainComponent::resized()
         rpSettingsSection.setBounds(0, settingsTop, sectionW, sectionH);
     }
     {
-        auto st = rpSettingsSection.getLocalBounds().reduced(16);
-        const int rowH = 28, labelH = 18, gap = 6, sectionGap = 14, comboW = 340, btnW = 150;
+        // Layout constants — must match content computations below
+        const int rowH = 28, labelH = 18, gap = 6, secPad = 8, secGap = 4;
+        const int comboW = 340, btnW = 150;
+
+        // Sub-section heights (secPad top + content + secPad bottom)
+        const int dbH   = 2*secPad + rowH + gap + rowH;
+        const int bcH   = 2*secPad + 28 + 6 + 3*(24+2);
+        const int midiH = 2*secPad + rowH + gap + labelH + rowH + gap + rowH;
+        const int sysH  = 2*secPad + rowH + gap + rowH;
+        const int miscH = 2*secPad + rowH + gap + rowH + gap + rowH;
+
+        const int w = rpSettingsSection.getWidth();
+        int y = 0;
+        rpDbSection.setBounds          (0, y, w, dbH);    y += dbH   + secGap;
+        rpBrowserColsSection.setBounds (0, y, w, bcH);    y += bcH   + secGap;
+        rpMidiSection.setBounds        (0, y, w, midiH);  y += midiH + secGap;
+        rpSysexSection.setBounds       (0, y, w, sysH);   y += sysH  + secGap;
+        rpMiscSection.setBounds        (0, y, w, miscH);
 
         // PATCH DATABASE
-        settHdrDb.setBounds(st.removeFromTop(rowH)); st.removeFromTop(gap);
-        { auto r = st.removeFromTop(rowH); selectDbButton.setBounds(r.removeFromLeft(120)); r.removeFromLeft(8); dbPathLabel.setBounds(r); }
-        st.removeFromTop(sectionGap);
+        {
+            auto st = rpDbSection.getLocalBounds().reduced(16, secPad);
+            settHdrDb.setBounds(st.removeFromTop(rowH)); st.removeFromTop(gap);
+            auto r = st.removeFromTop(rowH);
+            selectDbButton.setBounds(r.removeFromLeft(120)); r.removeFromLeft(8);
+            dbPathLabel.setBounds(r);
+        }
 
-        // MIDI SETUP — output (left) | input + refresh (right)
-        settHdrMidi.setBounds(st.removeFromTop(rowH)); st.removeFromTop(gap);
-        { auto r = st.removeFromTop(labelH); settLblOutput.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); settLblInput.setBounds(r.removeFromLeft(comboW)); }
-        { auto r = st.removeFromTop(rowH); midiOutputCombo.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); midiInputCombo.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); refreshMidiButton.setBounds(r.removeFromLeft(btnW)); }
-        st.removeFromTop(gap);
-        forwardingToggle.setBounds(st.removeFromTop(rowH));
-        st.removeFromTop(sectionGap);
+        // BROWSER COLUMNS
+        layoutBrowserColumnsSection(rpBrowserColsSection.getLocalBounds().reduced(16, secPad));
 
-        // SYSEX SETUP
-        settHdrSysex.setBounds(st.removeFromTop(rowH)); st.removeFromTop(gap);
-        { auto r = st.removeFromTop(rowH); devIdLabel.setBounds(r.removeFromLeft(100)); devIdSlider.setBounds(r.removeFromLeft(140)); r.removeFromLeft(gap*3); chunkLabel.setBounds(r.removeFromLeft(150)); chunkSlider.setBounds(r.removeFromLeft(180)); }
-        st.removeFromTop(gap);
-        { auto r = st.removeFromTop(rowH); r.removeFromLeft(100+140+gap*3); delayLabel.setBounds(r.removeFromLeft(150)); delaySlider.setBounds(r.removeFromLeft(180)); }
-        st.removeFromTop(gap);
-        { auto r = st.removeFromTop(rowH); patchesLabel.setBounds(r.removeFromLeft(100)); patchesCombo.setBounds(r.removeFromLeft(140)); r.removeFromLeft(gap); patchesNote.setBounds(r); }
-        st.removeFromTop(sectionGap);
+        // MIDI SETUP
+        {
+            auto st = rpMidiSection.getLocalBounds().reduced(16, secPad);
+            settHdrMidi.setBounds(st.removeFromTop(rowH)); st.removeFromTop(gap);
+            { auto r = st.removeFromTop(labelH); settLblOutput.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); settLblInput.setBounds(r.removeFromLeft(comboW)); }
+            { auto r = st.removeFromTop(rowH); midiOutputCombo.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); midiInputCombo.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); refreshMidiButton.setBounds(r.removeFromLeft(btnW)); }
+            st.removeFromTop(gap);
+            forwardingToggle.setBounds(st.removeFromTop(rowH));
+        }
 
-        // Status message — at the bottom
-        midiStatusBox.setBounds(st.removeFromTop(rowH));
+        // MISCELLANEOUS
+        {
+            auto st = rpMiscSection.getLocalBounds().reduced(16, secPad);
+            settHdrMisc.setBounds(st.removeFromTop(rowH)); st.removeFromTop(gap);
+            loggingToggle.setBounds(st.removeFromTop(rowH)); st.removeFromTop(gap);
+            midiStatusBox.setBounds(st.removeFromTop(rowH));
+        }
+
+        // SYSEX SETUP — single row
+        {
+            auto st = rpSysexSection.getLocalBounds().reduced(16, secPad);
+            settHdrSysex.setBounds(st.removeFromTop(rowH)); st.removeFromTop(gap);
+            auto r = st.removeFromTop(rowH);
+            const int lGap = 4, grpGap = 14, cW = 80;
+            devIdLabel.setBounds(r.removeFromLeft(42));  r.removeFromLeft(lGap);
+            devIdCombo.setBounds(r.removeFromLeft(cW));  r.removeFromLeft(grpGap);
+            chunkLabel.setBounds(r.removeFromLeft(40));  r.removeFromLeft(lGap);
+            chunkCombo.setBounds(r.removeFromLeft(cW));  r.removeFromLeft(grpGap);
+            delayLabel.setBounds(r.removeFromLeft(38));  r.removeFromLeft(lGap);
+            delayCombo.setBounds(r.removeFromLeft(cW));  r.removeFromLeft(grpGap);
+            patchesLabel.setBounds(r.removeFromLeft(48)); r.removeFromLeft(lGap);
+            patchesCombo.setBounds(r.removeFromLeft(cW)); r.removeFromLeft(8);
+            patchesNote.setBounds(r);
+        }
     }
 }
 
@@ -1156,15 +1354,112 @@ void MainComponent::LpPresetModel::paintListBoxItem(int row, juce::Graphics& g,
     if (selected) g.fillAll(juce::Colour(0xFF003366).withAlpha(0.8f));
     g.setColour(selected ? juce::Colours::white : juce::Colours::lightgrey);
     g.setFont(13.0f);
-    const int idW = 44, nameW = 130, x0 = 4;
-    g.drawText(juce::String(r.id),   x0,           0, idW,             height, juce::Justification::centredLeft);
-    g.drawText(r.presetName,         x0 + idW,     0, nameW,           height, juce::Justification::centredLeft);
-    g.drawText(r.category,           x0 + idW + nameW, 0, width - x0 - idW - nameW, height, juce::Justification::centredLeft);
+
+    const int x0 = 4;
+    int x = x0, remaining = width - x0;
+    for (int ci = 0; ci < owner.lpActiveCols.size(); ++ci)
+    {
+        const auto& col = owner.lpActiveCols[ci];
+        const bool isLast = (ci == owner.lpActiveCols.size() - 1);
+        const int colW = isLast ? remaining : col.width;
+
+        juce::String text;
+        if      (col.id == "id")         text = juce::String(r.id);
+        else if (col.id == "presetname") text = r.presetName;
+        else if (col.id == "category")   text = r.category;
+        else if (col.id == "bankfile")   text = r.bankfile;
+        else if (col.id == "origin")     text = r.origin;
+        else if (col.id == "comments")   text = r.comments;
+        else if (col.id == "rating")     text = r.rating > 0 ? juce::String(r.rating) : "-";
+
+        g.drawText(text, x, 0, colW, height, juce::Justification::centredLeft, true);
+        if (!isLast) { x += col.width; remaining -= col.width; }
+    }
 }
 
-void MainComponent::LpPresetModel::listBoxItemClicked(int row, const juce::MouseEvent&)
+void MainComponent::LpPresetModel::listBoxItemClicked(int row, const juce::MouseEvent& e)
 {
+    if (owner.selectedTg < 0) return;
+    const auto& rows = owner.lpBrowserState[owner.selectedTg].currentRows;
+    if (! juce::isPositiveAndBelow(row, rows.size())) return;
+    const auto& r = rows[row];
+
+    // Hit-test columns to detect click on the "rating" column
+    const int x0 = 4;
+    int x = x0, remaining = owner.lpPresetList.getWidth() - x0;
+    for (int ci = 0; ci < owner.lpActiveCols.size(); ++ci)
+    {
+        const auto& col = owner.lpActiveCols[ci];
+        const bool isLast = (ci == owner.lpActiveCols.size() - 1);
+        const int colW = isLast ? remaining : col.width;
+
+        if (col.id == "rating" && e.x >= x && e.x < x + colW)
+        {
+            juce::PopupMenu m;
+            m.addItem(1, "Unrated");
+            for (int i = 1; i <= 10; ++i)
+                m.addItem(100 + i, juce::String(i));
+
+            const int presetId = r.id;
+            m.showMenuAsync(juce::PopupMenu::Options{}, [this, presetId](int result)
+            {
+                if (result <= 0) return;
+                int newRating = (result == 1) ? 0 : (result - 100);
+                juce::String err;
+                if (owner.presetsDb) owner.presetsDb->updateRating(presetId, newRating, err);
+                owner.lpRefreshPresets();
+            });
+            return;
+        }
+
+        if (!isLast) { x += col.width; remaining -= col.width; }
+    }
+
     owner.lpPresetItemClicked(row);
+}
+
+void MainComponent::LpPresetModel::listBoxItemDoubleClicked(int row, const juce::MouseEvent& e)
+{
+    if (owner.selectedTg < 0) return;
+    const auto& rows = owner.lpBrowserState[owner.selectedTg].currentRows;
+    if (! juce::isPositiveAndBelow(row, rows.size())) return;
+    const auto& r = rows[row];
+
+    // Hit-test columns to detect double-click on the "comments" column
+    const int x0 = 4;
+    int x = x0, remaining = owner.lpPresetList.getWidth() - x0;
+    for (int ci = 0; ci < owner.lpActiveCols.size(); ++ci)
+    {
+        const auto& col = owner.lpActiveCols[ci];
+        const bool isLast = (ci == owner.lpActiveCols.size() - 1);
+        const int colW = isLast ? remaining : col.width;
+
+        if (col.id == "comments" && e.x >= x && e.x < x + colW)
+        {
+            const int presetId = r.id;
+            const juce::String currentComments = r.comments;
+
+            auto* dlg = new juce::AlertWindow("Edit Comments", "Enter new comments for this preset:", juce::AlertWindow::NoIcon);
+            dlg->addTextEditor("comments", currentComments, "Comments:");
+            dlg->addButton("OK",     1, juce::KeyPress(juce::KeyPress::returnKey));
+            dlg->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+
+            dlg->enterModalState(true, juce::ModalCallbackFunction::create([this, dlg, presetId](int result)
+            {
+                if (result == 1)
+                {
+                    const auto newText = dlg->getTextEditorContents("comments");
+                    juce::String err;
+                    if (owner.presetsDb) owner.presetsDb->updateComments(presetId, newText, err);
+                    owner.lpRefreshPresets();
+                }
+                delete dlg;
+            }), true);
+            return;
+        }
+
+        if (!isLast) { x += col.width; remaining -= col.width; }
+    }
 }
 
 void MainComponent::LpPresetHeader::paint(juce::Graphics& g)
@@ -1172,10 +1467,16 @@ void MainComponent::LpPresetHeader::paint(juce::Graphics& g)
     g.fillAll(juce::Colours::darkgrey.darker(0.3f));
     g.setColour(juce::Colours::white);
     g.setFont(juce::Font(12.0f, juce::Font::bold));
-    const int h = getHeight(), idW = 44, nameW = 130, x0 = 4;
-    g.drawText("ID",       x0,           0, idW,             h, juce::Justification::centredLeft);
-    g.drawText("Patch",    x0 + idW,     0, nameW,           h, juce::Justification::centredLeft);
-    g.drawText("Category", x0 + idW + nameW, 0, getWidth() - x0 - idW - nameW, h, juce::Justification::centredLeft);
+    const int h = getHeight(), x0 = 4;
+    int x = x0, remaining = getWidth() - x0;
+    for (int ci = 0; ci < owner.lpActiveCols.size(); ++ci)
+    {
+        const auto& col = owner.lpActiveCols[ci];
+        const bool isLast = (ci == owner.lpActiveCols.size() - 1);
+        const int colW = isLast ? remaining : col.width;
+        g.drawText(col.label, x, 0, colW, h, juce::Justification::centredLeft, true);
+        if (!isLast) { x += col.width; remaining -= col.width; }
+    }
 }
 
 
@@ -1770,6 +2071,114 @@ void MainComponent::setLpRowVisible(int tg0based, bool visible)
 }
 
 // ── LP Preset Browser — methods ──
+
+void MainComponent::lpRefreshBrowserColumns()
+{
+    midi::ConfigState cfg; midi::Config::load(cfg);
+
+    // Collect all 7 columns with their config, sort by order
+    struct Entry { juce::String id, label; int width, order; bool show; };
+    std::array<Entry, 7> all = {{
+        { "id",         "ID",        cfg.bcId.width,       cfg.bcId.order,       true },
+        { "presetname", "Patch",     cfg.bcPreset.width,   cfg.bcPreset.order,   true },
+        { "category",   "Category",  cfg.bcCategory.width, cfg.bcCategory.order, cfg.bcCategory.show },
+        { "bankfile",   "Bank File", cfg.bcBankfile.width, cfg.bcBankfile.order, cfg.bcBankfile.show },
+        { "origin",     "Origin",    cfg.bcOrigin.width,   cfg.bcOrigin.order,   cfg.bcOrigin.show },
+        { "comments",   "Comments",  cfg.bcComments.width, cfg.bcComments.order, cfg.bcComments.show },
+        { "rating",     "Rating",    cfg.bcRating.width,   cfg.bcRating.order,   cfg.bcRating.show },
+    }};
+    std::sort(all.begin(), all.end(), [](const Entry& a, const Entry& b){ return a.order < b.order; });
+
+    lpActiveCols.clear();
+    for (const auto& e : all)
+        if (e.show)
+            lpActiveCols.add({ e.id, e.label, e.width });
+
+    lpPresetList.repaint();
+    lpPresetHeader.repaint();
+}
+
+void MainComponent::colSettingsChanged()
+{
+    midi::ConfigState cfg; midi::Config::load(cfg);
+    for (int i = 0; i < kNumOptionalCols; ++i)
+    {
+        int k = colOrder[i];
+        auto& bc = cfg.bcByOptIdx(k);
+        bc.order = i + 3;  // 3..7
+        bc.show  = colCheck[k].getToggleState();
+    }
+    midi::Config::save(cfg);
+    lpRefreshBrowserColumns();
+}
+
+void MainComponent::layoutBrowserColumnsSection(juce::Rectangle<int> st)
+{
+    // All 7 columns in a unified 3-column grid.
+    // Each config: [checkbox 22][gap 4][pos 52][gap 4][width 40][gap 6][name fills rest]
+    // Rows: (ID, Patch, Category), (Bank File, Origin, Comments), (Rating, —, —)
+    const int rowH = 24, rowGap = 2;
+    const int checkW = 22, posW = 52, wEdW = 40, innerGap = 4, labelGap = 6, pairGap = 16;
+
+    settHdrBrowserCols.setBounds(st.removeFromTop(28)); st.removeFromTop(6);
+
+    // Position one column config within rectangle r (check == nullptr → blank checkbox slot)
+    auto placeCol = [&](juce::Rectangle<int> r, juce::Component* check,
+                        juce::Component& posEd, juce::Label& widEd, juce::Label& nameL)
+    {
+        if (check != nullptr) check->setBounds(r.removeFromLeft(checkW));
+        else                   r.removeFromLeft(checkW);
+        r.removeFromLeft(innerGap);
+        posEd.setBounds(r.removeFromLeft(posW));
+        r.removeFromLeft(innerGap);
+        widEd.setBounds(r.removeFromLeft(wEdW));
+        r.removeFromLeft(labelGap);
+        nameL.setBounds(r);
+    };
+
+    // Split a full-width row into three equal thirds separated by pairGap
+    auto splitRow3 = [&](juce::Rectangle<int> row)
+        -> std::tuple<juce::Rectangle<int>, juce::Rectangle<int>, juce::Rectangle<int>>
+    {
+        const int thirdW = (row.getWidth() - 2 * pairGap) / 3;
+        auto left = row.removeFromLeft(thirdW);
+        row.removeFromLeft(pairGap);
+        auto mid = row.removeFromLeft(thirdW);
+        row.removeFromLeft(pairGap);
+        return { left, mid, row };
+    };
+
+    auto placeOptional = [&](juce::Rectangle<int> r, int k)
+    {
+        colPosCombo[k].setSelectedId(colOrder.indexOf(k) + 3, juce::dontSendNotification);
+        colNameLabel[k].setColour(juce::Label::textColourId,
+            colCheck[k].getToggleState() ? juce::Colours::white : juce::Colour(0xFF666666));
+        placeCol(r, &colCheck[k], colPosCombo[k], colWidthEd[k], colNameLabel[k]);
+    };
+
+    // Row 1: ID (fixed) | Patch (fixed) | Category
+    {
+        auto [left, mid, right] = splitRow3(st.removeFromTop(rowH)); st.removeFromTop(rowGap);
+        placeCol(left,  nullptr, colFixedPosEd[0], colFixedWidthEd[0], colFixedLabel[0]);
+        placeCol(mid,   nullptr, colFixedPosEd[1], colFixedWidthEd[1], colFixedLabel[1]);
+        placeOptional(right, 0); // category
+    }
+
+    // Row 2: Bank File | Origin | Comments
+    {
+        auto [left, mid, right] = splitRow3(st.removeFromTop(rowH)); st.removeFromTop(rowGap);
+        placeOptional(left,  1); // bankfile
+        placeOptional(mid,   2); // origin
+        placeOptional(right, 3); // comments
+    }
+
+    // Row 3: Rating | — | —  (two slots reserved for future columns)
+    {
+        auto [left, mid, right] = splitRow3(st.removeFromTop(rowH)); st.removeFromTop(rowGap);
+        placeOptional(left, 4); // rating
+        (void)mid; (void)right;
+    }
+}
 
 void MainComponent::lpRefreshPresets()
 {

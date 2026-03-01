@@ -325,6 +325,34 @@ private:
     LpBrowserState lpBrowserState[8];
     int lpCurrentPage { 1 };   // mirrors lpBrowserState[selectedTg].currentPage
 
+    // ── Configurable browser columns ──────────────────────────────────────
+    struct ColDef { juce::String id, label; int width; };
+    static const ColDef kAllCols[];
+    static constexpr int kNumOptionalCols = 5;
+    static const char* kOptionalColIds[kNumOptionalCols]; // category/bankfile/origin/comments/rating
+
+    juce::Array<ColDef> lpActiveCols;   // rebuilt by lpRefreshBrowserColumns()
+    void lpRefreshBrowserColumns();
+
+    // BROWSER COLUMNS settings section
+    juce::Label settHdrBrowserCols { {}, "BROWSER COLUMNS" };
+
+    // Fixed rows for always-on columns (ID, Patch) — read-only position + width, no checkbox
+    juce::Label colFixedLabel[2];
+    juce::Label colFixedWidthEd[2];
+    juce::Label colFixedPosEd[2];
+
+    // Optional columns — [checkbox][position][width][name]
+    juce::ToggleButton colCheck[kNumOptionalCols];
+    juce::ComboBox     colPosCombo[kNumOptionalCols];
+    juce::Label        colWidthEd[kNumOptionalCols];
+    juce::Label        colNameLabel[kNumOptionalCols];
+
+    juce::Array<int>   colOrder;   // permutation of 0..kNumOptionalCols-1; browser column order
+
+    void colSettingsChanged();
+    void layoutBrowserColumnsSection(juce::Rectangle<int> area);
+
     // ListBoxModel for the LP preset list (one shared instance)
     class LpPresetModel : public juce::ListBoxModel
     {
@@ -334,6 +362,7 @@ private:
         void       paintListBoxItem(int row, juce::Graphics& g,
                                     int width, int height, bool selected) override;
         void       listBoxItemClicked(int row, const juce::MouseEvent&) override;
+        void       listBoxItemDoubleClicked(int row, const juce::MouseEvent&) override;
     private:
         MainComponent& owner;
     };
@@ -449,9 +478,21 @@ private:
     // Controls are children of this container; the Settings tab in the tab bar is now empty.
     struct RpSettingsSection : public juce::Component
     {
-        void paint(juce::Graphics& g) override { g.fillAll(juce::Colour(0xFF1E1E1E)); }
+        void paint(juce::Graphics& g) override { g.fillAll(juce::Colours::black); }
     };
     RpSettingsSection rpSettingsSection;
+
+    // Sub-sections hosted inside rpSettingsSection — each fills 0xFF1E1E1E;
+    // the 4px gap between them lets the black parent background show through.
+    struct SettingsSubSection : public juce::Component
+    {
+        void paint(juce::Graphics& g) override { g.fillAll(juce::Colour(0xFF1E1E1E)); }
+    };
+    SettingsSubSection rpDbSection;
+    SettingsSubSection rpBrowserColsSection;
+    SettingsSubSection rpMidiSection;
+    SettingsSubSection rpSysexSection;
+    SettingsSubSection rpMiscSection;
 
     // Settings tab (MIDI + actions)
     juce::Component settingsTab;
@@ -461,6 +502,8 @@ private:
     juce::Label settHdrMidi     { {}, "MIDI SETUP" };
     juce::Label settHdrDevice   { {}, "Device Control" };   // hidden — kept for reference
     juce::Label settHdrSysex    { {}, "SYSEX SETUP" };
+    juce::Label settHdrMisc     { {}, "MISCELLANEOUS" };
+    juce::ToggleButton loggingToggle { "Write logfile" };
     // MIDI port labels and combos
     juce::Label settLblInput    { {}, "MIDI from Keyboard or DAW:" };
     juce::Label settLblOutput   { {}, "MIDI to TX802:" };
@@ -476,13 +519,13 @@ private:
     juce::TextButton playTest { "Play Test Notes" };
     juce::TextButton panicBtn { "All Notes Off" };
     // SysEx transfer settings
-    juce::Label devIdLabel { {}, "Device ID:" };
-    juce::Slider devIdSlider { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
-    juce::Label chunkLabel { {}, "Chunk size (bytes):" };
-    juce::Slider chunkSlider { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
-    juce::Label delayLabel { {}, "Inter-chunk delay (ms):" };
-    juce::Slider delaySlider { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
-    juce::Label patchesLabel  { {}, "Patches to send:" };
+    juce::Label devIdLabel { {}, "Dev ID" };
+    juce::ComboBox devIdCombo;
+    juce::Label chunkLabel { {}, "Chunk" };
+    juce::ComboBox chunkCombo;
+    juce::Label delayLabel { {}, "Delay" };
+    juce::ComboBox delayCombo;
+    juce::Label patchesLabel  { {}, "Patches" };
     juce::ComboBox patchesCombo;
     juce::Label patchesNote   { {}, "Default 8; don't change." };
     std::unique_ptr<midi::MidiSender> midiSender;
