@@ -33,8 +33,8 @@ struct ConfigState {
     bool forwardingEnabled { false };
     juce::String dbPath;
     int deviceId { 1 };             // 1..16
-    int sysexChunkBytes { 256 };    // pacing chunk size
-    int sysexInterChunkMs { 20 };   // pacing delay between chunks
+    int sysexChunkBytes { 1024 };   // pacing chunk size
+    int sysexInterChunkMs { 10 };   // pacing delay between chunks
     int patchesToSend { 8 };        // how many voices to send (1,8,16,32)
     int lastSelectedTg { 0 };       // 0-based; default TG1
     bool loggingEnabled { false };  // write tx802-startup.log when true
