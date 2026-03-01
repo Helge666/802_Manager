@@ -884,21 +884,7 @@ MainComponent::MainComponent()
         const bool ok = midiSender->openByName(name);
         midiStatusBox.setText(ok ? juce::String("Opened OUT: ") + name : juce::String("Open OUT failed: ") + name);
         midi::ConfigState cfg; midi::Config::load(cfg); cfg.outputPort = name; midi::Config::save(cfg);
-        if (ok)
-        {
-            if (startupThread) startupThread->stopThread(8000);
-            midiStatusBox.setText("Sending startup sequence...");
-            startupThread = std::make_unique<StartupThread>(*midiSender, cfg.deviceId,
-                    [this](int tg, bool on) {
-                        juce::MessageManager::callAsync([this, tg, on] { setTgLed(tg, on); });
-                    },
-                    [this](int stage) {
-                        if (stage == 2)
-                            juce::MessageManager::callAsync([this] { startupInProgress = false; lpUpdateOverlay(); startupBankRestore(); });
-                    });
-            startupInProgress = true;
-            startupThread->startThread();
-        }
+        // No startup sequence here — device init only runs at app launch (or via Prepare button).
         if (forwardingToggle.getToggleState() && midiSender->isOpen() && midiInputCombo.getText().isNotEmpty())
         {
             if (midiThru && midiThru->isRunning()) midiThru->stop();

@@ -42,13 +42,20 @@
 - [ ] Fine-tune inter-message pauses during bank send
       (review SysEx chunk size, inter-chunk delay, post-send sequences)
 
+## Compiler deprecation warnings (clean up)
+
+- [ ] `DragAndDropContainer::startDragging` — use the overload that takes an image scale factor
+      (see `BankSlotComponent::mouseDrag` in MainComponent.cpp)
+- [ ] `MidiOutput::getDevices()` — replace with `MidiOutput::getAvailableDevices()`
+      (see `rebuildMidiOutputs()` in MainComponent.cpp)
+
 ## Known bugs (deferred)
 
 - [x] Bug 3 — changing MIDI input while forwarding is ON doesn't restart forwarding
       (see `midiInputCombo.onChange` in MainComponent.cpp)
 - [x] Bug 4 — `MidiThru::handleIncomingMidiMessage` forwards SysEx; should filter
       to notes and CC only (see MidiThru.h)
-- [ ] Bug 5 — changing "MIDI to TX802" (output port) incorrectly triggers the device
+- [x] Bug 5 — changing "MIDI to TX802" (output port) incorrectly triggers the device
       startup/init sequence; it should only reopen the MIDI output port.
 - [ ] Bug 6 — changing "MIDI from Keyboard or DAW" (input port) does not activate the
       newly selected input; the previously selected port keeps receiving.
