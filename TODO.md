@@ -18,10 +18,16 @@
 	  
 ## Left Panel incoming MIDI LED signal
 
-- [ ] On the device, the LEDs in the TG buttons flicker briefly when a Note On on the Receive Channel of the respective TG comes in.
-      - Note Off or other events do not do not trigger the flicker.
-	  - Flickering does not last for the duration of the note, only for a very brief moment after Note On (~5ms-15ms.).
-	  - Only on TGs that are on.
+- [~] DEFERRED — spec needs to be written more precisely before implementation.
+      Behaviour notes so far:
+      - TG LED is ON when TG is on; OFF (dark) when TG is off.
+      - On Note On for a TG's receive channel: LED briefly goes OFF (dark), then returns ON.
+        Duration of dark period: ~5–10 ms (needs calibration after implementation).
+      - Note Off and other events do NOT trigger the flicker.
+      - TG must be ON for the LED to react; off-TGs never flicker.
+      - Chords / rapid Note Ons: device does not stack flickers — LED stays dark for one
+        cooloff period, ignores further Note Ons until cooloff expires (cooloff is not extended).
+      - Omni-mode TGs react to Note Ons on any channel.
 
 ## MIDI Aftertouch to Breath
 
@@ -38,7 +44,11 @@
 
 ## Known bugs (deferred)
 
-- [ ] Bug 3 — changing MIDI input while forwarding is ON doesn't restart forwarding
+- [x] Bug 3 — changing MIDI input while forwarding is ON doesn't restart forwarding
       (see `midiInputCombo.onChange` in MainComponent.cpp)
 - [x] Bug 4 — `MidiThru::handleIncomingMidiMessage` forwards SysEx; should filter
       to notes and CC only (see MidiThru.h)
+- [ ] Bug 5 — changing "MIDI to TX802" (output port) incorrectly triggers the device
+      startup/init sequence; it should only reopen the MIDI output port.
+- [ ] Bug 6 — changing "MIDI from Keyboard or DAW" (input port) does not activate the
+      newly selected input; the previously selected port keeps receiving.
