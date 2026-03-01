@@ -25,8 +25,8 @@
 
 ## MIDI Aftertouch to Breath
 
-- [ ] Evaluate whether Poly and/or Channel Aftertouch CCs can be converted to Breath Controller CCs.
-- [ ] If so, implement, and add checkbox in settings.
+- [?] Aftertouch to Breath (CC2) — implemented (Channel AT + Poly AT → CC2, checkbox in MIDI SETUP).
+      Unverified: UB-Xa AT output and TX802 Breath response need device-level investigation.
 
 ## MIDI Timing
 
@@ -40,5 +40,5 @@
 
 - [ ] Bug 3 — changing MIDI input while forwarding is ON doesn't restart forwarding
       (see `midiInputCombo.onChange` in MainComponent.cpp)
-- [ ] Bug 4 — `MidiThru::handleIncomingMidiMessage` forwards SysEx; should filter
+- [x] Bug 4 — `MidiThru::handleIncomingMidiMessage` forwards SysEx; should filter
       to notes and CC only (see MidiThru.h)
