@@ -910,7 +910,15 @@ MainComponent::MainComponent()
     midiInputCombo.onChange = [this]
     {
         midi::ConfigState cfg; midi::Config::load(cfg); cfg.inputPort = midiInputCombo.getText(); midi::Config::save(cfg);
-        // TODO (Bug 3): if forwardingToggle is ON, stop and restart midiThru with the new input
+        if (forwardingToggle.getToggleState() && midiThru)
+        {
+            midiThru->stop();
+            const auto inName = midiInputCombo.getText();
+            if (inName.isNotEmpty() && midiSender && midiSender->isOpen() && midiThru->start(inName, midiSender.get()))
+                midiStatusBox.setText("Forwarding ON (" + inName + " \xe2\x86\x92 " + midiOutputCombo.getText() + ")");
+            else
+                midiStatusBox.setText("Forwarding: input not available (" + inName + ")");
+        }
     };
 
     forwardingToggle.onClick = [this]
