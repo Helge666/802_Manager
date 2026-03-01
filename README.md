@@ -8,11 +8,8 @@ The TX802 is one of the most powerful FM synthesizers ever made — eight indepe
 
 ---
 
-### Left Panel — Tone Generator Control & Preset Browser
-![Left Panel](Left_Panel.png)
-
-### Right Panel — Macros & Settings
-![Right Panel](Right_Panel.png)
+<img src="Left_Panel.png" width="45%"/> &nbsp; <img src="Right_Panel.png" width="45%"/>
+<br><sub>Left: Tone Generator Control & Preset Browser &nbsp;|&nbsp; Right: Macros & Settings</sub>
 
 ---
 
