@@ -53,17 +53,42 @@ public:
 
     bool isRunning() const { return running; }
 
+    void setAtToBreath(bool e) { atToBreath = e; }
+
 private:
     void handleIncomingMidiMessage(juce::MidiInput*, const juce::MidiMessage& message) override
     {
-        // TODO (Bug 4): filter to notes and CC only (skip SysEx and other status bytes)
-        if (sender)
+        if (! sender) return;
+
+        // Forward Notes, CC, and Pitch Bend (Bug 4: drop SysEx and other status bytes).
+        // Aftertouch (Channel + Poly) is converted to Breath Controller (CC2)
+        // when atToBreath is enabled, otherwise dropped.
+        if (message.isNoteOnOrOff() || message.isController() || message.isPitchWheel())
+        {
             sender->sendMessageNow(message);
+        }
+        else if (atToBreath)
+        {
+            if (message.isChannelPressure())
+            {
+                sender->sendMessageNow(
+                    juce::MidiMessage::controllerEvent(
+                        message.getChannel(), 2, message.getChannelPressureValue()));
+            }
+            else if (message.isAftertouch())
+            {
+                sender->sendMessageNow(
+                    juce::MidiMessage::controllerEvent(
+                        message.getChannel(), 2, message.getAfterTouchValue()));
+            }
+        }
+        // Everything else (SysEx, Program Change, etc.) is dropped.
     }
 
     std::unique_ptr<juce::MidiInput> input;
     MidiSender* sender { nullptr };
     bool running { false };
+    bool atToBreath { false };
 };
 
 }

@@ -37,6 +37,8 @@ struct ConfigState {
     int sysexInterChunkMs { 20 };   // pacing delay between chunks
     int patchesToSend { 8 };        // how many voices to send (1,8,16,32)
     int lastSelectedTg { 0 };       // 0-based; default TG1
+    bool loggingEnabled { false };  // write tx802-startup.log when true
+    bool atToBreathEnabled { false }; // convert Aftertouch to Breath Controller (CC2)
 
     // Performance state for TG1-TG8  (Python-compatible format)
     core::TgState tg[8];            // tg[0] = TG1 .. tg[7] = TG8
@@ -44,6 +46,30 @@ struct ConfigState {
 
     // Names of the patches in the most recently sent bank (position = bank slot index)
     juce::StringArray presetBankNames; // up to 32 entries; empty string = not set
+
+    // Per-column config: width, display order (1-7), visibility
+    struct BrowserCol { int width; int order; bool show; };
+    BrowserCol bcId        {  50, 1, true  };
+    BrowserCol bcPreset    { 120, 2, true  };
+    BrowserCol bcCategory  {  80, 4, true  };
+    BrowserCol bcBankfile  { 120, 5, true  };
+    BrowserCol bcOrigin    {  80, 6, true  };
+    BrowserCol bcComments  { 100, 7, true  };
+    BrowserCol bcRating    {  50, 3, true  };
+
+    BrowserCol& bcByOptIdx(int k) {
+        switch (k) {
+            case 0: return bcCategory;
+            case 1: return bcBankfile;
+            case 2: return bcOrigin;
+            case 3: return bcComments;
+            case 4: return bcRating;
+            default: jassertfalse; return bcCategory;
+        }
+    }
+    const BrowserCol& bcByOptIdx(int k) const {
+        return const_cast<ConfigState*>(this)->bcByOptIdx(k);
+    }
 };
 
 // ─── Config file I/O ─────────────────────────────────────────────────────
@@ -80,6 +106,10 @@ public:
             state.patchesToSend = (int) obj->getProperty("patches_to_send");
         if (obj->hasProperty("last_selected_tg"))
             state.lastSelectedTg = juce::jlimit(0, 7, (int) obj->getProperty("last_selected_tg"));
+        if (obj->hasProperty("logging_enabled"))
+            state.loggingEnabled = (bool) obj->getProperty("logging_enabled");
+        if (obj->hasProperty("at_to_breath"))
+            state.atToBreathEnabled = (bool) obj->getProperty("at_to_breath");
 
         // Load performance params – Python-compatible format:
         // "performance_params": { "1": { "TG": "Off", "PRESET": "I01", ... }, ... }
@@ -126,6 +156,30 @@ public:
             }
         }
 
+        // Browser column config
+        if (obj->hasProperty("browser_config"))
+        {
+            if (auto* bc = obj->getProperty("browser_config").getDynamicObject())
+            {
+                auto loadCol = [&](const char* key, ConfigState::BrowserCol& col) {
+                    if (bc->hasProperty(key)) {
+                        if (auto* c = bc->getProperty(key).getDynamicObject()) {
+                            if (c->hasProperty("width")) col.width = (int)c->getProperty("width");
+                            if (c->hasProperty("order")) col.order = (int)c->getProperty("order");
+                            if (c->hasProperty("show"))  col.show  = (bool)c->getProperty("show");
+                        }
+                    }
+                };
+                loadCol("id",         state.bcId);
+                loadCol("presetname", state.bcPreset);
+                loadCol("category",   state.bcCategory);
+                loadCol("bankfile",   state.bcBankfile);
+                loadCol("origin",     state.bcOrigin);
+                loadCol("comments",   state.bcComments);
+                loadCol("rating",     state.bcRating);
+            }
+        }
+
         return true;
     }
 
@@ -141,6 +195,8 @@ public:
         obj->setProperty("sysex_interchunk_ms", state.sysexInterChunkMs);
         obj->setProperty("patches_to_send", state.patchesToSend);
         obj->setProperty("last_selected_tg", state.lastSelectedTg);
+        obj->setProperty("logging_enabled",  state.loggingEnabled);
+        obj->setProperty("at_to_breath",     state.atToBreathEnabled);
 
         // Save performance params – Python-compatible format
         if (state.hasPerformanceParams)
@@ -172,6 +228,26 @@ public:
             for (const auto& n : state.presetBankNames)
                 names.add(n);
             obj->setProperty("preset_bank", names);
+        }
+
+        // Browser column config
+        {
+            auto saveCol = [](const ConfigState::BrowserCol& col) -> juce::var {
+                juce::DynamicObject::Ptr c = new juce::DynamicObject();
+                c->setProperty("width", col.width);
+                c->setProperty("order", col.order);
+                c->setProperty("show",  col.show);
+                return juce::var(c.get());
+            };
+            juce::DynamicObject::Ptr bc = new juce::DynamicObject();
+            bc->setProperty("id",         saveCol(state.bcId));
+            bc->setProperty("presetname", saveCol(state.bcPreset));
+            bc->setProperty("category",   saveCol(state.bcCategory));
+            bc->setProperty("bankfile",   saveCol(state.bcBankfile));
+            bc->setProperty("origin",     saveCol(state.bcOrigin));
+            bc->setProperty("comments",   saveCol(state.bcComments));
+            bc->setProperty("rating",     saveCol(state.bcRating));
+            obj->setProperty("browser_config", juce::var(bc.get()));
         }
 
         juce::var json(obj.get());
