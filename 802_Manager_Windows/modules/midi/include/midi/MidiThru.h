@@ -60,10 +60,10 @@ private:
     {
         if (! sender) return;
 
-        // Forward Notes and CC only (Bug 4: drop SysEx and other status bytes).
+        // Forward Notes, CC, and Pitch Bend (Bug 4: drop SysEx and other status bytes).
         // Aftertouch (Channel + Poly) is converted to Breath Controller (CC2)
         // when atToBreath is enabled, otherwise dropped.
-        if (message.isNoteOnOrOff() || message.isController())
+        if (message.isNoteOnOrOff() || message.isController() || message.isPitchWheel())
         {
             sender->sendMessageNow(message);
         }
@@ -82,7 +82,7 @@ private:
                         message.getChannel(), 2, message.getAfterTouchValue()));
             }
         }
-        // Everything else (SysEx, Program Change, Pitch Bend, etc.) is dropped.
+        // Everything else (SysEx, Program Change, etc.) is dropped.
     }
 
     std::unique_ptr<juce::MidiInput> input;
