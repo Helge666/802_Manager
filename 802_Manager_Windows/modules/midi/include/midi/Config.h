@@ -38,6 +38,7 @@ struct ConfigState {
     int patchesToSend { 8 };        // how many voices to send (1,8,16,32)
     int lastSelectedTg { 0 };       // 0-based; default TG1
     bool loggingEnabled { false };  // write tx802-startup.log when true
+    bool atToBreathEnabled { false }; // convert Aftertouch to Breath Controller (CC2)
 
     // Performance state for TG1-TG8  (Python-compatible format)
     core::TgState tg[8];            // tg[0] = TG1 .. tg[7] = TG8
@@ -107,6 +108,8 @@ public:
             state.lastSelectedTg = juce::jlimit(0, 7, (int) obj->getProperty("last_selected_tg"));
         if (obj->hasProperty("logging_enabled"))
             state.loggingEnabled = (bool) obj->getProperty("logging_enabled");
+        if (obj->hasProperty("at_to_breath"))
+            state.atToBreathEnabled = (bool) obj->getProperty("at_to_breath");
 
         // Load performance params – Python-compatible format:
         // "performance_params": { "1": { "TG": "Off", "PRESET": "I01", ... }, ... }
@@ -193,6 +196,7 @@ public:
         obj->setProperty("patches_to_send", state.patchesToSend);
         obj->setProperty("last_selected_tg", state.lastSelectedTg);
         obj->setProperty("logging_enabled",  state.loggingEnabled);
+        obj->setProperty("at_to_breath",     state.atToBreathEnabled);
 
         // Save performance params – Python-compatible format
         if (state.hasPerformanceParams)

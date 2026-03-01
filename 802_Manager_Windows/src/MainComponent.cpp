@@ -548,6 +548,7 @@ MainComponent::MainComponent()
     rpMidiSection.addAndMakeVisible(settLblOutput);
     rpMidiSection.addAndMakeVisible(refreshMidiButton);
     rpMidiSection.addAndMakeVisible(forwardingToggle);
+    rpMidiSection.addAndMakeVisible(atToBreathToggle);
     midiStatusBox.setMultiLine(false);
     midiStatusBox.setReadOnly(true);
     midiStatusBox.setCaretVisible(false);
@@ -938,6 +939,21 @@ MainComponent::MainComponent()
         midi::ConfigState cfg; midi::Config::load(cfg); cfg.forwardingEnabled = forwardingToggle.getToggleState(); midi::Config::save(cfg);
     };
 
+    // AT to Breath
+    {
+        midi::ConfigState cfg; midi::Config::load(cfg);
+        atToBreathToggle.setToggleState(cfg.atToBreathEnabled, juce::dontSendNotification);
+        if (midiThru) midiThru->setAtToBreath(cfg.atToBreathEnabled);
+        atToBreathToggle.onClick = [this]
+        {
+            const bool enabled = atToBreathToggle.getToggleState();
+            if (midiThru) midiThru->setAtToBreath(enabled);
+            midi::ConfigState c; midi::Config::load(c);
+            c.atToBreathEnabled = enabled;
+            midi::Config::save(c);
+        };
+    }
+
     // Load pacing and device ID config
     {
         for (int i = 1; i <= 16; ++i) devIdCombo.addItem(juce::String(i), i);
@@ -1304,7 +1320,12 @@ void MainComponent::resized()
             { auto r = st.removeFromTop(labelH); settLblOutput.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); settLblInput.setBounds(r.removeFromLeft(comboW)); }
             { auto r = st.removeFromTop(rowH); midiOutputCombo.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); midiInputCombo.setBounds(r.removeFromLeft(comboW)); r.removeFromLeft(gap); refreshMidiButton.setBounds(r.removeFromLeft(btnW)); }
             st.removeFromTop(gap);
-            forwardingToggle.setBounds(st.removeFromTop(rowH));
+            {
+                auto r = st.removeFromTop(rowH);
+                forwardingToggle.setBounds(r.removeFromLeft(220));
+                r.removeFromLeft(gap * 4);
+                atToBreathToggle.setBounds(r);
+            }
         }
 
         // MISCELLANEOUS

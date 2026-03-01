@@ -511,6 +511,7 @@ private:
     juce::ComboBox midiInputCombo;
     juce::TextButton refreshMidiButton { "Refresh MIDI" };
     juce::ToggleButton forwardingToggle { "Enable MIDI Forwarding" };
+    juce::ToggleButton atToBreathToggle { "Aftertouch to Breath (CC2)" };
     // Status message box
     juce::TextEditor midiStatusBox;
     // Device control
