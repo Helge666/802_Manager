@@ -8,7 +8,9 @@
 
 namespace midi {
 
-// Simple file logger for startup diagnostics
+// Append-only file logger — never clears or deletes the log.
+// Each app session/startup-sequence appends a blank line + version header.
+// Log location: tx802-startup.log next to the executable.
 class StartupLog {
 public:
     static juce::File getLogFile()
@@ -18,18 +20,19 @@ public:
         return exeFile.getParentDirectory().getChildFile("tx802-startup.log");
     }
 
-    static void clear()
-    {
-        auto f = getLogFile();
-        f.deleteFile();
-    }
+    static void setEnabled(bool e) { s_enabled = e; }
+    static bool isEnabled()        { return s_enabled; }
 
     static void write(const juce::String& msg)
     {
+        if (! s_enabled) return;
         auto f = getLogFile();
         auto ts = juce::Time::getCurrentTime().toString(true, true, true, true);
         f.appendText(ts + "  " + msg + "\n");
     }
+
+private:
+    static inline bool s_enabled { false };
 };
 
 /**
@@ -111,7 +114,6 @@ public:
     static void sendStartupSequence(MidiSender& sender, juce::uint8 deviceId1to16,
                                     std::function<void()> onDeviceBooted = nullptr)
     {
-        StartupLog::clear();
         StartupLog::write("=== sendStartupSequence BEGIN  deviceId=" + juce::String((int)deviceId1to16)
                           + "  senderOpen=" + juce::String(sender.isOpen() ? "true" : "false") + " ===");
 

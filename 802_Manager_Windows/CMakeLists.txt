@@ -37,10 +37,22 @@ juce_add_binary_data(GuiAssets SOURCES
     ../assets/fonts/NotoSansSymbols2-Regular.ttf
 )
 
+# ── Auto-incrementing build number ───────────────────────────────────────────
+# scripts/bump_build.sh reads build_number.txt, writes src/Version.h, increments
+# the file for the next run. Runs on every ninja invocation before compilation.
+add_custom_target(bump_version ALL
+    COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/bump_build.sh
+    BYPRODUCTS ${CMAKE_SOURCE_DIR}/src/Version.h
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Bumping build number..."
+)
+
 juce_add_gui_app(802_Manager_Windows_App
     PRODUCT_NAME "802_Manager"
     COMPANY_NAME "Helge"
 )
+
+add_dependencies(802_Manager_Windows_App bump_version)
 
 target_sources(802_Manager_Windows_App PRIVATE
     src/Main.cpp

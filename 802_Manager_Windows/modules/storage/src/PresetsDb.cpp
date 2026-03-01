@@ -62,7 +62,10 @@ juce::Array<PresetRow> PresetsDb::queryPresets(const juce::String& textFilter,
     }
 
     juce::String countSql = "SELECT COUNT(*) FROM presets" + where + ";";
-    juce::String listSql = "SELECT id, presetname, category, comments, COALESCE(rating, 0) FROM presets" + where + " LIMIT ? OFFSET ?;";
+    juce::String listSql =
+        "SELECT id, presetname, category, comments, COALESCE(rating,0), "
+        "COALESCE(bankfile,''), COALESCE(origin,'') "
+        "FROM presets" + where + " LIMIT ? OFFSET ?;";
 
     // Prepare and run count
     sqlite3_stmt* stmt = nullptr;
@@ -90,7 +93,9 @@ juce::Array<PresetRow> PresetsDb::queryPresets(const juce::String& textFilter,
             row.presetName = (const char*) sqlite3_column_text(stmt, 1);
             row.category = (const char*) sqlite3_column_text(stmt, 2);
             row.comments = (const char*) sqlite3_column_text(stmt, 3);
-            row.rating = sqlite3_column_int(stmt, 4);
+            row.rating   = sqlite3_column_int(stmt, 4);
+            row.bankfile = (const char*) sqlite3_column_text(stmt, 5);
+            row.origin   = (const char*) sqlite3_column_text(stmt, 6);
             rows.add(row);
         }
     }
@@ -137,6 +142,21 @@ bool PresetsDb::updateRating(int id, int rating, juce::String& errorMessage)
     int bindIndex = 1;
     if (rating > 0) sqlite3_bind_int(stmt, bindIndex++, rating);
     sqlite3_bind_int(stmt, bindIndex++, id);
+    bool ok = sqlite3_step(stmt) == SQLITE_DONE;
+    if (! ok) errorMessage = "update failed";
+    sqlite3_finalize(stmt);
+    return ok;
+}
+
+bool PresetsDb::updateComments(int id, const juce::String& text, juce::String& errorMessage)
+{
+    if (! sqliteHandle && ! open()) { errorMessage = "DB open failed"; return false; }
+    auto* db = (sqlite3*) sqliteHandle;
+    const char* sql = "UPDATE presets SET comments = ? WHERE id = ?;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) { errorMessage = "prepare failed"; return false; }
+    sqlite3_bind_text(stmt, 1, text.toRawUTF8(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, id);
     bool ok = sqlite3_step(stmt) == SQLITE_DONE;
     if (! ok) errorMessage = "update failed";
     sqlite3_finalize(stmt);

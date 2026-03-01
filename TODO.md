@@ -1,21 +1,40 @@
-# 802 Manager — TODO (next session)
+# 802 Manager — TODO
 
-## GUI Polish
+## Known bugs (fix now)
 
-- [ ] Nicer JUCE buttons (replace plain TextButton style throughout)
-- [ ] Right-hand vertical patch bank view → horizontal strip above the preset browser
-- [ ] Move other UI elements around as needed (review overall layout)
-- [ ] Clean up the Settings section in the Right Panel tab (visual tidying)
+- [x] Version number in logfile and App Window Title are off by 1. Evaluate and correct.
 
-## Features
+## Patch browser improvements
 
-- [ ] "Send immediately" option in Settings: automatically send the bank to the device
-      as soon as a new patch is selected for a TG (no manual Send button needed)
+- [x] Default display of browser columns: 1=ID, 2=Patch, 3=Rating, 4=Category, 5=Bank File, 6=Origin, 7=Comments
+      - default for first app start w/o config. will be written to new config as start values.
+
+## Setting tabs improvement
+
+- [x] In the settings, the path browser config, change from 2-column to 3-column; there's enough space.
+      - This will free up some vertical space.
+- [x] Add a black gap between each  of the sections, like the one after MACROS.
+- [x] Add a checkbox for logging - logfile will be written when checked (True), otherwise (False) not. Default=False.
+	  
+## Left Panel incoming MIDI LED signal
+
+- [ ] On the device, the LEDs in the TG buttons flicker briefly when a Note On on the Receive Channel of the respective TG comes in.
+      - Note Off or other events do not do not trigger the flicker.
+	  - Flickering does not last for the duration of the note, only for a very brief moment after Note On (~5ms-15ms.).
+	  - Only on TGs that are on.
+
+## MIDI Aftertouch to Breath
+
+- [ ] Evaluate whether Poly and/or Channel Aftertouch CCs can be converted to Breath Controller CCs.
+- [ ] If so, implement, and add checkbox in settings.
 
 ## MIDI Timing
 
-- [ ] Fine-tune inter-message pauses, particularly during bank send
-      (review delays between SysEx chunks and post-send button sequences)
+- [ ] Reduce startup sequence wait times as much as safely possible
+      — review WAIT=3 (device boot), inter-button delays (100ms), inter-chunk delays
+      — goal: shortest reliable timings without corrupting device state
+- [ ] Fine-tune inter-message pauses during bank send
+      (review SysEx chunk size, inter-chunk delay, post-send sequences)
 
 ## Known bugs (deferred)
 
