@@ -6,7 +6,8 @@
 
 Open the link, then click the `.zip` file under **Assets**. Unzip it and start `802_Manager.exe` -
 nothing else to install. The steps are in `INSTALL.txt` inside the zip and under
-[Getting Started](#getting-started).
+[Getting Started](#getting-started). Windows only for now - macOS and Linux versions are planned
+(see [Roadmap](#roadmap)).
 
 The TX802 is one of the most powerful FM synthesizers ever made — eight independent Tone Generators, each capable of playing a different sound simultaneously, with full per-voice control over channel, note range, volume, pan, detune, and more. Sonically, it still holds up in 2026. Operationally, navigating its tiny 1980s LCD and cryptic button sequences is a different story.
 
@@ -51,6 +52,11 @@ Route your keyboard or DAW through the app to the TX802. Optional Aftertouch-to-
 Settings, the last session and `startup_bank.syx` live in `%APPDATA%\802_Manager`. With logging switched on (Settings → MISCELLANEOUS) the app writes `tx802-startup.log` next to `802_Manager.exe`.
 
 ---
+
+## Roadmap
+
+- **macOS version**
+- **Linux version**
 
 ## Versions
 

@@ -1,5 +1,10 @@
 # 802 Manager — TODO
 
+## Roadmap
+
+- [ ] macOS version
+- [ ] Linux version
+
 ## Known bugs (fix now)
 
 - [x] Version number in logfile and App Window Title are off by 1. Evaluate and correct.
