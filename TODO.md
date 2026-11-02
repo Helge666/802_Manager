@@ -36,11 +36,10 @@
 
 ## MIDI Timing
 
-- [?] Chord note jitter during MidiThru forwarding — notes in a chord arrive at the TX802
-      with indeterministic timing, subtly changing the phrasing. Investigated: not caused by
-      our MidiThru filter changes (baseline passthrough test shows the same behaviour).
-      Likely inherent to USB→Computer→USB routing (two USB frame hops + thread scheduling).
-      Needs further investigation; may require message batching or a different approach.
+- [x] Chord note jitter during MidiThru forwarding — investigated. Jitter is isolated to TG8
+      only; TG1–TG7 are clean. Tested across all voice patches; jitter is indeterministic and
+      patch-independent. Conclusion: confirmed TX802 hardware fault specific to TG8 (aging
+      internal timing circuit). Out of scope — no software workaround possible.
 - [ ] Reduce startup sequence wait times as much as safely possible
       — review WAIT=3 (device boot), inter-button delays (100ms), inter-chunk delays
       — goal: shortest reliable timings without corrupting device state
