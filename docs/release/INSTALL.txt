@@ -1,0 +1,40 @@
+802 MANAGER - Windows 10/11, 64 bit
+https://github.com/Helge666/802_Manager
+
+Turns the Yamaha TX802 into a modern multi-timbral sound module: presets, Tone
+Generator setup and the device's state are handled by the app.
+
+
+INSTALL
+
+1. Copy the folder of this download anywhere you like (e.g. your desktop).
+2. Double-click 802_Manager.exe.
+   On the first start Windows may say "Windows protected your PC", because the
+   app is not signed. Click "More info", then "Run anyway".
+3. In the Settings tab, point the database path to dx_preset_library.sqlite3
+   from this folder.
+4. Select your MIDI output port - the app initialises the TX802 and restores
+   your last session.
+
+
+CONNECTION
+
+Only the computer's MIDI OUT to the TX802's MIDI IN is needed; the TX802 sends
+nothing back. Some USB MIDI interfaces struggle with the large SysEx bursts the
+TX802 needs (the MIDIFACE 2x2, for example); the MIDI output of a Behringer
+XR18 works well.
+
+
+IN USE
+
+- Settings, the last session and startup_bank.syx are stored in
+  %APPDATA%\802_Manager.
+- With logging switched on (Settings, MISCELLANEOUS) the app writes
+  tx802-startup.log next to 802_Manager.exe.
+
+Questions and problems: https://github.com/Helge666/802_Manager/issues
+
+
+LICENSE
+
+AGPLv3 - see LICENSE.txt. The source code of this version is on GitHub (link above).

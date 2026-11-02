@@ -1,0 +1,6 @@
+* text=auto
+*.ps1 text eol=crlf
+*.syx binary
+*.sqlite3 binary
+*.png binary
+*.ttf binary

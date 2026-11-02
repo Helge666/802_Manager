@@ -1,5 +1,0 @@
-add_executable(patch_extract main.cpp)
-target_link_libraries(patch_extract PRIVATE core storage_db juce::juce_core juce::juce_events)
-if (MINGW)
-    target_link_options(patch_extract PRIVATE -static-libstdc++ -static-libgcc -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic)
-endif()
